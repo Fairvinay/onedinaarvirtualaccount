@@ -5,13 +5,13 @@ const _ = require("lodash")
 const { authenticate } = require("../middleware/authenticate")
 const { User } = require("../models/user")
 const { Money } = require("../models/model"); // Adjust path as needed
-/*
-router.post("/signup", (req, res) => {
+ 
+router.post("/signupold", (req, res) => {
     let body = _.pick(req.body, ["email", "password", "name"])
-
+      newbody = { userSalt : 833492, underlyingOrderId : '4dg94egxsg' , activationDate:Date.now() , ...body }
     console.log(" /signup ")
-      console.log(" user from frontend "+JSON.stringify(body))
-    let user = new User(body)
+      console.log(" user from frontend "+JSON.stringify(newbody))
+    let user = new User(newbody)
 
     user.save().then(() => {
 
@@ -38,11 +38,11 @@ router.post("/signup", (req, res) => {
     }).catch(err => {
         res.status(400).send(err)
     })
-})*/
+}) 
 router.post("/signup", (req, res) => {
     // Pick the extended fields from the frontend payload
     let body = _.pick(req.body, ["email", "password", "name", "userSalt", "underlyingOrderId"]);
-
+        newbody = { userSalt : 833492, underlyingOrderId : '4dg94egxsg' , activationDate:Date.now , ...body }
     let user = new User(body);
 
     user.save().then(() => {

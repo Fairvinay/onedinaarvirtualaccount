@@ -2,6 +2,11 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const TradeOrder = require('../models/tradeorder'); // Path to your schema
+const URLS = {
+    AP1 : 'https://api-nse-india-vbmd.onrender.com', // 'https://scraper-api-eyiz.onrender.com' 
+    AP2 :  'https://query1.finance.yahoo.com', // 'https://feedsmain.onrender.com'https://artilleryfeed2.onrender.com'
+}
+ 
 // use this https://auth.iextrading.com/?r=https%3A%2F%2Fiextrading.com%2Faccount%2F#/
 // create account https://auth.iextrading.com/?r=https%3A%2F%2Fiextrading.com%2Faccount%2F#/register
 
@@ -87,13 +92,13 @@ router.get('/stock/:symbol', async (req, res) => {
 
                // 1. Fetch the data from your new Render API https://artilleryfeed2.onrender.com
             // Note: Using the equity endpoint as you provided
-            const response = await axios.get(`https://scraper-api-eyiz.onrender.com/api/equity/${symbol.toUpperCase()}`);
+            const response = await axios.get(`${URLS.AP1}/api/equity/${symbol.toUpperCase()}`);
             const resData = response.data;
             
            // const response = await  placeMockOrder(req , res);  // axios.get(url);
             res.json(response.data);
         } catch (error) {
-            console.error("scraper-api-eyiz.onrender.com/ Fetch Error:", error.response?.status);
+            console.error(`${URLS.AP1}/ Fetch Error:`, error.response?.status);
             res.status(error.response?.status || 500).json({ 
                 error: "Market Data Unavailable",
                 message: "Ensure your scraper-api-eyiz.onrender.com/ is valid."
@@ -107,7 +112,7 @@ router.get('/chart/:symbol', async (req, res) => {
         const ticker = symbol.includes('.') ? symbol : `${symbol}.NS`;
         
         // Yahoo API for Intraday (Range: 1 day, Interval: 5 mins)
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1d&interval=5m`;
+        const yahooUrl = `${URLS.AP2}/v8/finance/chart/${ticker}?range=1d&interval=5m`;
 
         const response = await axios.get(yahooUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' } // Yahoo requires a User-Agent header
