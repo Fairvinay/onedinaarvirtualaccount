@@ -83,6 +83,14 @@ router.post("/login", (req, res) => {
 })
 
 router.delete("/logout", authenticate, (req, res) => {
+    console.log("User:", req.user);
+    console.log("Token:", req.token);
+
+    if (!req.user || !req.token) {
+        return res.status(401).send("Authentication failed");
+    }
+
+
     req.user.removeToken(req.token).then(() => {
         res.status(200).send("logged out")
     }).catch(err => {
