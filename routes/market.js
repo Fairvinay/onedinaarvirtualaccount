@@ -2,6 +2,10 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const TradeOrder = require('../models/tradeorder'); // Path to your schema
+//const fetchQuote = require('./fetchQuote'); // Path to your puppeteer fetch 
+//const fetchQuoteold = require('./fetchQuote'); // Path to your puppeteer fetch 
+   const { fetchQuote , fetchQuoteold  }  = require('./fetchQuote');
+   const { getQuoteWithWorkers } = require('../middleware/quoteService');
 const URLS = {
     AP1 : 'https://api-nse-india-vbmd.onrender.com', // 'https://scraper-api-eyiz.onrender.com' 
     AP2 :  'https://query1.finance.yahoo.com', // 'https://feedsmain.onrender.com'https://artilleryfeed2.onrender.com'
@@ -63,6 +67,153 @@ const URLS = {
 }
 
 */
+router.get('/stockbrowser/:symbol', async (req, res) => {
+    console.log(`🚀 INVOKING WORKER RACE FOR: ${req.params.symbol}`);
+
+    try {
+        const { symbol } = req.params;
+
+        // 1. Call the worker manager instead of fetchQuote directly
+        const pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+
+        // 2. Format the data to match your frontend's expectations
+        // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
+        const formattedQuote = {
+            companyName: pupQuote.companyName,
+            symbol: pupQuote.symbol,
+            sector: '',
+            latestPrice: parseFloat(pupQuote.latestPrice.replace(/,/g, '')),
+            open: pupQuote.details?.Open || '0',
+            high: pupQuote.details?.High || '0',
+            low: pupQuote.details?.Low || '0',
+            close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
+            week52High: pupQuote.details?.["52W H"] || '',
+            week52Low: pupQuote.details?.["52W L"] || '',
+        };
+
+        console.log(`✅ Success: ${formattedQuote.symbol} at ${formattedQuote.latestPrice}`);
+        res.json(formattedQuote);
+
+    } catch (err) {
+        console.error(`❌ Route Error: ${err.message}`);
+        res.status(500).json({
+            error: "Market Data Unavailable",
+            message: "The workers were unable to parse NSE data. Please try again in a moment."
+        });
+    }
+});
+
+
+
+router.get('/stockbrowserold2/:symbol', async (req, res) => {
+    console.log(` TRYING PUPPETEER APPROACH `, );        
+
+    try {  
+        const { symbol } = req.params;
+
+       let pupQuote = await  fetchQuote(symbol.toUpperCase(),  3);
+       /**
+           return {
+        symbol: symbolText,
+        latestPrice,
+        companyName,
+        details
+        };
+
+        Output Example
+        {
+        "symbol": "RELIANCE",
+        "latestPrice": "1,467.20",
+        "companyName": "Reliance Industries Limited",
+        "details": {
+            "Prev. Close": "1,430.80",
+            "Open": "1,433.40",
+            "High": "1,467.40",
+            "Low": "1,433.40",
+            "Close *": "1,463.10",
+            "VWAP": "1,453.99"
+        }
+        }
+        */
+
+       const formattedQuote    = {
+        companyName: pupQuote.companyName,
+        symbol: pupQuote.symbol,
+        sector:  '',
+        latestPrice: pupQuote.latestPrice,  
+        open: pupQuote.details.Open,
+        high: pupQuote.details.High,
+        low: pupQuote.details.Low,
+        close: pupQuote.details.Close,
+        week52High: '',
+        week52Low: '',
+    };
+        console.log(`formattedQuote quote from puppeteer  ${JSON.stringify(formattedQuote)}`);
+        res.json(formattedQuote);
+
+    }       
+    catch(ert){
+        res.status(ert.response?.status || 500).json({ 
+            error: "Market Data Unavailable",
+            message: `Ensure your puppeteer is parsing the nseindia with right selectore is valid.`
+        });
+    }   
+});
+
+router.get('/stockbrowserold/:symbol', async (req, res) => {
+    console.log(` TRYING PUPPETEER APPROACH fetchQuoteold `, );        
+
+    try {  
+        const { symbol } = req.params;
+
+       let pupQuote = await  fetchQuoteold(symbol.toUpperCase(),  3);
+       /**
+           return {
+        symbol: symbolText,
+        latestPrice,
+        companyName,
+        details
+        };
+
+        Output Example
+        {
+        "symbol": "RELIANCE",
+        "latestPrice": "1,467.20",
+        "companyName": "Reliance Industries Limited",
+        "details": {
+            "Prev. Close": "1,430.80",
+            "Open": "1,433.40",
+            "High": "1,467.40",
+            "Low": "1,433.40",
+            "Close *": "1,463.10",
+            "VWAP": "1,453.99"
+        }
+        }
+        */
+
+       const formattedQuote    = {
+        companyName: pupQuote.companyName,
+        symbol: pupQuote.symbol,
+        sector:  '',
+        latestPrice: pupQuote.latestPrice,  
+        open: pupQuote.details.Open,
+        high: pupQuote.details.High,
+        low: pupQuote.details.Low,
+        close: pupQuote.details.Close,
+        week52High: '',
+        week52Low: '',
+    };
+        console.log(`formattedQuote quote from puppeteer  ${JSON.stringify(formattedQuote)}`);
+        res.json(formattedQuote);
+
+    }       
+    catch(ert){
+        res.status(ert.response?.status || 500).json({ 
+            error: "Market Data Unavailable",
+            message: `Ensure your puppeteer is parsing the nseindia with right selectore is valid.`
+        });
+    }   
+});
 
 // GET /api/stock/:symbol
 router.get('/stock/:symbol', async (req, res) => {
@@ -98,11 +249,94 @@ router.get('/stock/:symbol', async (req, res) => {
            // const response = await  placeMockOrder(req , res);  // axios.get(url);
             res.json(response.data);
         } catch (error) {
-            console.error(`${URLS.AP1}/ Fetch Error:`, error.response?.status);
-            res.status(error.response?.status || 500).json({ 
-                error: "Market Data Unavailable",
-                message: "Ensure your scraper-api-eyiz.onrender.com/ is valid."
-            });
+            console.log(`${URLS.AP1}/ Fetch Error:`, error.response?.status);
+
+            console.log(` TRYING PUPPETEER APPROACH `, );       
+            
+            try {
+                const { symbol } = req.params;
+        
+                // 1. Call the worker manager instead of fetchQuote directly
+                const pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+        
+                // 2. Format the data to match your frontend's expectations
+                // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
+                const formattedQuote = {
+                    companyName: pupQuote.companyName,
+                    symbol: pupQuote.symbol,
+                    sector: '',
+                    latestPrice: parseFloat(pupQuote.latestPrice.replace(/,/g, '')),
+                    open: pupQuote.details?.Open || '0',
+                    high: pupQuote.details?.High || '0',
+                    low: pupQuote.details?.Low || '0',
+                    close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
+                    week52High: pupQuote.details?.["52W H"] || '',
+                    week52Low: pupQuote.details?.["52W L"] || '',
+                };
+        
+                console.log(`✅ Success: ${formattedQuote.symbol} at ${formattedQuote.latestPrice}`);
+                res.json(formattedQuote);
+        
+            } catch (err) {
+                console.error(`❌ Route Error: ${err.message}`);
+                res.status(500).json({
+                    error: "Market Data Unavailable",
+                    message: "The workers were unable to parse NSE data. Please try again in a moment."
+                });
+            }
+              /**
+                   return {
+                symbol: symbolText,
+                latestPrice,
+                companyName,
+                details
+                };
+
+                Output Example
+                {
+                "symbol": "RELIANCE",
+                "latestPrice": "1,467.20",
+                "companyName": "Reliance Industries Limited",
+                "details": {
+                    "Prev. Close": "1,430.80",
+                    "Open": "1,433.40",
+                    "High": "1,467.40",
+                    "Low": "1,433.40",
+                    "Close *": "1,463.10",
+                    "VWAP": "1,453.99"
+                }
+                }
+                */
+               /*
+            try {  
+               let pupQuote = await  fetchQuote(symbol.toUpperCase(),  3);
+            
+
+               const formattedQuote    = {
+                companyName: pupQuote.companyName,
+                symbol: pupQuote.symbol,
+                sector:  '',
+                latestPrice: pupQuote.latestPrice,  
+                open: pupQuote.details.Open,
+                high: pupQuote.details.High,
+                low: pupQuote.details.Low,
+                close: pupQuote.details.Close,
+                week52High: '',
+                week52Low: '',
+            };
+                console.log(`formattedQuote quote from puppeteer  ${JSON.stringify(formattedQuote)}`);
+                res.json(formattedQuote);
+
+            }       
+            catch(ert){
+                res.status(error.response?.status || 500).json({ 
+                    error: "Market Data Unavailable",
+                    message: `Ensure your ${URLS.AP1}/ or puppeteer is parsing the nseindia with right selectore is valid.`
+                });
+            }   
+            */
+
+           
         }
 });
 router.get('/chart/:symbol', async (req, res) => {

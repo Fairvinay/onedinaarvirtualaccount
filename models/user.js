@@ -1,6 +1,6 @@
 const {mongoose} = require('./mongoose-setup');
-const uniqueValidator = require('mongoose-unique-validator');
-const validator = require('validator');
+//const uniqueValidator = require('mongoose-unique-validator');
+//const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
@@ -125,7 +125,15 @@ UserSchema.pre('save', function (next) {
         next();
     }
 });
-
+/**  improved 
+ UserSchema.pre('save', async function (next) {
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10);
+  }
+  next();
+});
+   
+ */
 //UserSchema.plugin(uniqueValidator)
 
 let User = mongoose.model('User', UserSchema);
