@@ -4,7 +4,7 @@ const router = express.Router();
 const TradeOrder = require('../models/tradeorder'); // Path to your schema
 //const fetchQuote = require('./fetchQuote'); // Path to your puppeteer fetch 
 //const fetchQuoteold = require('./fetchQuote'); // Path to your puppeteer fetch 
-   const { fetchQuote , fetchQuoteold  }  = require('./fetchQuote');
+   const { fetchQuote , fetchQuoteold , fetchNiftyQuoteold }  = require('./fetchQuote');
    const { getQuoteWithWorkers } = require('../middleware/quoteService');
 const URLS = {
     AP1 : 'https://api-nse-india-vbmd.onrender.com', // 'https://scraper-api-eyiz.onrender.com' 
@@ -68,28 +68,60 @@ const URLS = {
 
 */
 router.get('/stockbrowser/:symbol', async (req, res) => {
+    console.log(`🚀 INVOKED  /stockbrowser/:symbol : ${req.params.symbol}`);
     console.log(`🚀 INVOKING WORKER RACE FOR: ${req.params.symbol}`);
 
     try {
         const { symbol } = req.params;
 
         // 1. Call the worker manager instead of fetchQuote directly
-        const pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+        // check synvols is nifty indices 
+        let isNifty = req.params.symbol.toLocaleUpperCase().indexOf('NIFTY') > -1 ? true : false;
+        
+    
+        
+       let  pupQuote =  {}
+       let  formattedQuote =  {}
+       if(isNifty){
+        console.log(`🚀 FETCHING NIFTY SCRIPT  : ${req.params.symbol}`);
+          // pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+           pupQuote = await fetchNiftyQuoteold(symbol.toUpperCase(),  3);
 
-        // 2. Format the data to match your frontend's expectations
-        // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
-        const formattedQuote = {
-            companyName: pupQuote.companyName,
-            symbol: pupQuote.symbol,
-            sector: '',
-            latestPrice: parseFloat(pupQuote.latestPrice.replace(/,/g, '')),
-            open: pupQuote.details?.Open || '0',
-            high: pupQuote.details?.High || '0',
-            low: pupQuote.details?.Low || '0',
-            close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
-            week52High: pupQuote.details?.["52W H"] || '',
-            week52Low: pupQuote.details?.["52W L"] || '',
-        };
+       // 2. Format the data to match your frontend's expectations
+       // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
+        formattedQuote = {
+           companyName: pupQuote.companyName !== undefined ? pupQuote.companyName  :  "",
+           symbol: pupQuote.symbol !== undefined ? pupQuote.symbol  :  "",
+           sector: '',
+           latestPrice: parseFloat(pupQuote.latestPrice?.replace(/,/g, '')),
+           open: pupQuote.details?.Open || '0',
+           high: pupQuote.details?.High || '0',
+           low: pupQuote.details?.Low || '0',
+           close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
+           week52High: pupQuote.details?.["52W H"] || '',
+           week52Low: pupQuote.details?.["52W L"] || '',
+       };
+
+       }
+        else {
+            pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+
+            // 2. Format the data to match your frontend's expectations
+            // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
+             formattedQuote = {
+                companyName: pupQuote.companyName !== undefined ? pupQuote.companyName  :  "",
+                symbol: pupQuote.symbol !== undefined ? pupQuote.symbol  :  "",
+                sector: '',
+                latestPrice: parseFloat(pupQuote.latestPrice?.replace(/,/g, '')),
+                open: pupQuote.details?.Open || '0',
+                high: pupQuote.details?.High || '0',
+                low: pupQuote.details?.Low || '0',
+                close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
+                week52High: pupQuote.details?.["52W H"] || '',
+                week52Low: pupQuote.details?.["52W L"] || '',
+            };
+        }
+          
 
         console.log(`✅ Success: ${formattedQuote.symbol} at ${formattedQuote.latestPrice}`);
         res.json(formattedQuote);
@@ -161,12 +193,63 @@ router.get('/stockbrowserold2/:symbol', async (req, res) => {
 });
 
 router.get('/stockbrowserold/:symbol', async (req, res) => {
+
+    console.log(`🚀 INVOKED  /stockbrowserold/:symbol : ${req.params.symbol}`);
     console.log(` TRYING PUPPETEER APPROACH fetchQuoteold `, );        
 
     try {  
         const { symbol } = req.params;
 
-       let pupQuote = await  fetchQuoteold(symbol.toUpperCase(),  3);
+
+         // check synvols is nifty indices 
+         let isNifty = req.params.symbol.toLocaleUpperCase().indexOf('NIFTY') > -1 ? true : false;
+        
+         let  pupQuote =  {}
+         let  formattedQuote =  {}
+         if(isNifty){
+            console.log(`🚀 stockbrowserold FETCHING NIFTY SCRIPT  : ${req.params.symbol}`);
+            // pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+             pupQuote = await fetchNiftyQuoteold(symbol.toUpperCase(),  3);
+ 
+         // 2. Format the data to match your frontend's expectations
+         // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
+          formattedQuote = {
+             companyName: pupQuote.companyName !== undefined ? pupQuote.companyName  :  "",
+             symbol: pupQuote.symbol !== undefined ? pupQuote.symbol  :  "",
+             sector: '',
+             latestPrice: parseFloat(pupQuote.latestPrice?.replace(/,/g, '')),
+             open: pupQuote.details?.Open || '0',
+             high: pupQuote.details?.High || '0',
+             low: pupQuote.details?.Low || '0',
+             close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
+             week52High: pupQuote.details?.["52W H"] || '',
+             week52Low: pupQuote.details?.["52W L"] || '',
+         };
+ 
+         }
+         else {
+           //  pupQuote = await getQuoteWithWorkers(symbol.toUpperCase());
+              pupQuote = await  fetchQuoteold(symbol.toUpperCase(),  3);
+             // 2. Format the data to match your frontend's expectations
+             // Note: We use .replace(/,/g, '') to convert string "1,467.20" to a number format
+              formattedQuote = {
+                 companyName: pupQuote.companyName !== undefined ? pupQuote.companyName  :  "",
+                 symbol: pupQuote.symbol !== undefined ? pupQuote.symbol  :  "",
+                 sector: '',
+                 latestPrice: parseFloat(pupQuote.latestPrice?.replace(/,/g, '')),
+                 open: pupQuote.details?.Open || '0',
+                 high: pupQuote.details?.High || '0',
+                 low: pupQuote.details?.Low || '0',
+                 close: pupQuote.details?.["Close *"] || '0', // NSE uses "Close *"
+                 week52High: pupQuote.details?.["52W H"] || '',
+                 week52Low: pupQuote.details?.["52W L"] || '',
+             };
+         }
+
+
+
+
+      
        /**
            return {
         symbol: symbolText,
@@ -190,8 +273,8 @@ router.get('/stockbrowserold/:symbol', async (req, res) => {
         }
         }
         */
-
-       const formattedQuote    = {
+         /* 
+        formattedQuote    = {
         companyName: pupQuote.companyName,
         symbol: pupQuote.symbol,
         sector:  '',
@@ -202,7 +285,7 @@ router.get('/stockbrowserold/:symbol', async (req, res) => {
         close: pupQuote.details.Close,
         week52High: '',
         week52Low: '',
-    };
+    }; */
         console.log(`formattedQuote quote from puppeteer  ${JSON.stringify(formattedQuote)}`);
         res.json(formattedQuote);
 
@@ -233,7 +316,7 @@ router.get('/stock/:symbol', async (req, res) => {
             details: error.response?.data || error.message 
         });
     }*/
-
+        console.log(`🚀 INVOKED  /stock/:symbol : ${req.params.symbol}`);
         try {
             const { symbol } = req.params;
             const TOKEN = process.env.IEX_TOKEN; // Get this from iexcloud.io

@@ -86,7 +86,102 @@ async function getQuoteWithWorkersold(symbol, workerCount = 2) {
 
 // Example usage in your Express Route:
 // const data = await getQuoteWithWorkers('RELIANCE', 2);
- 
+  
+const getNiftyQuoteWithWorkers = (symbol , workerCount = 2 ) => {
+    return new Promise((resolve, reject) => {
+
+
+        // 1. Check Cache first
+        const cachedData = priceCache[symbol];
+        if (cachedData && (Date.now() - cachedData.timestamp < CACHE_DURATION)) {
+            console.log(`💾 Serving ${symbol} from Cache`);
+            return resolve(cachedData.data);
+        }
+
+        // 2. If Market is closed and we have ANY data, don't scrape
+        if (!isMarketOpen() && cachedData) {
+            console.log(`🌙 Market Closed. Serving last known price for ${symbol}`);
+            return resolve(cachedData.data);
+        }
+
+        // 3. Start the Scraper (ONLY if necessary)
+        let finished = false;
+        // REDUCED TO 1 WORKER: Racing 2 workers is likely what's killing your RAM
+        const worker = new Worker(path.join(__dirname, 'worker/fetchNiftyWorker.js'), {
+            workerData: { symbol, maxRetries: 2 }
+        });
+
+        const cleanup = () => {
+            finished = true;
+            worker.terminate();
+        };
+
+        worker.on('message', (msg) => {
+            if (msg.status === 'success' && !finished) {
+                // Update Cache
+                priceCache[symbol] = { data: msg.data, timestamp: Date.now() };
+                cleanup();
+                resolve(msg.data);
+            }
+        });
+
+        worker.on('error', (err) => { cleanup(); reject(err); });
+        
+        worker.on('exit', (code) => {
+            if (code !== 0 && !finished) reject(new Error("Worker failed"));
+        });
+
+        // 45s Hard Timeout
+        setTimeout(() => { if (!finished) { cleanup(); reject(new Error("Timeout")); } }, 45000);
+
+
+       /*  EARLIER 2 WORKER CODE   GARBABE COLLECTION STARTED 
+        let completed = false;
+        const workers = [];
+
+        const cleanup = () => {
+            completed = true;
+            workers.forEach(w => w.terminate()); // Kill all other busy workers
+        };
+
+        for (let i = 0; i < workerCount; i++) {
+            const worker = new Worker(path.join(__dirname, 'worker/fetchWorker.js'), {
+                workerData: { symbol, maxRetries: 3 }
+            });
+
+            workers.push(worker);
+
+            worker.on('message', (msg) => {
+                if (msg.status === 'success' && !completed) {
+                    cleanup();
+                    resolve(msg.data);
+                }
+            });
+
+            worker.on('error', (err) => {
+                console.error("Worker Error:", err);
+            });
+
+            worker.on('exit', (code) => {
+                if (code !== 0 && !completed) {
+                    // Check if all workers failed
+                    if (workers.every(w => w.threadId === -1)) {
+                        reject(new Error("All workers failed to fetch data"));
+                    }
+                }
+            });
+        }
+
+        // Global safety timeout (e.g., 60 seconds total)
+        setTimeout(() => {
+            if (!completed) {
+                cleanup();
+                reject(new Error("Timeout: Workers took too long"));
+            }
+        }, 60000);
+        */
+    });
+}; 
 const getQuoteWithWorkers = (symbol , workerCount = 2 ) => {
     return new Promise((resolve, reject) => {
 
