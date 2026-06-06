@@ -6,7 +6,9 @@ const TradeOrder = require('../models/tradeorder'); // Path to your schema
 //const fetchQuoteold = require('./fetchQuote'); // Path to your puppeteer fetch 
 const { getQuoteWithWorkers } = require('../middleware/quoteService');
 const { fetchQuote , fetchQuoteold , fetchNiftyQuoteold  }  = require('./fetchQuote');
-const {   fetchNiftyIndices , fetchNiftyIndicesSecond , fetchNiftyIndicesThird}  = require('./fetchNiftyIndicesQuote');
+const {   fetchNiftyIndices , fetchNiftyIndicesSecond , fetchNiftyIndicesThird ,
+    fetchNiftyIndicesTPlayWright
+}  = require('./fetchNiftyIndicesQuote');
 const cheerio = require('cheerio');
    const globalStore =
    require("../globalStore");
@@ -739,7 +741,7 @@ router.get('/stockbrowserold/marketstatus', async (req, res) => {
     try {  
        // const { symbol } = req.params;
 
-       let niftyIndices = await  fetchNiftyIndicesThird(   3);
+       let niftyIndices = await fetchNiftyIndicesTPlayWright(3);  /// await  fetchNiftyIndicesThird(   3);
 
         // 2. Transmute data layers out of standard tables into rich modular UI template
         //const responsiveDashboardHtml = await transformTableToResponsiveCardsCarousel(niftyIndices);

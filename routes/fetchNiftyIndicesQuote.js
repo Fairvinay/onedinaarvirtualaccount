@@ -1693,6 +1693,99 @@ try {
 
 
 }
+async function fetchNiftyIndicesTPlayWright( maxRetries = 3) {
+
+  let browser;
+try {
+  // Apply the stealth plugin
+   // does not work in windows 
+  chromium.use(stealth);
+   // Launching with args to help in restricted environments , usually does not work on windoes 
+   browser = await chromium.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox',
+            "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
+          ]
+      });
+      const userAgents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    ];
+   const context = await browser.newContext({
+          viewport: { width: 1280, height: 800 },
+          userAgent:userAgents[Math.floor(Math.random() * userAgents.length)]
+          // 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      });  
+       // usually does not work on windoes 
+    const page = await context.newPage();
+    console.log(" fetchNiftyIndicesTPlayWright with chromium and browser started")
+    await page.setExtraHTTPHeaders({
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,all;q=0.8',
+            'Referer': 'https://www.nseindia.com/',
+            'Connection': 'keep-alive'
+        });
+    let data = {};
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                  await page.goto(
+                   `https://www.nseindia.com/market-data/live-market-indices`,
+                    {
+                      waitUntil: 'domcontentloaded',
+                        timeout: 60000
+                    }
+                );
+                 // Navigate and wait for content
+              //  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                console.log("fetchNiftyIndicesTPlayWright page.goto task over.");
+
+            // Wait specifically for the internal content boxes to render in the DOM
+            // Step 3: Wait cleanly for the correct element ID selector targeting
+            console.log("Waiting for #liveindexTable to establish structural render...");
+            await page.waitForSelector('#liveindexTable', { timeout: 60000 });
+            // Step 4: Isolate and extract just the inner HTML string of that single element layout
+            const tableHTML = await page.evaluate(async () => {
+              const tableElement = document.querySelector('#liveindexTable');
+              // Error Attempt 3 failed: transformTableToResponsiveCards is not defined
+            //   const tailWindTransformed  =  await   transformTableToResponsiveCards(tableElement.outerHTML)
+              // Move it to market.js 
+             // return tailWindTransformed ? tailWindTransformed : null;
+              return tableElement ? tableElement.outerHTML : null;
+            });
+
+            if (!tableHTML) {
+                throw new Error("Target #liveindexTable selector isolated successfully, but contained a null inner body.");
+            }
+            console.log("⚡ Success! Raw DOM structure safely retrieved.");
+            console.log(` NIFTY LIVE MARKET  INDICES HTML `)
+            console.log(`  ${ tableHTML}`)
+            return tableHTML;
+          }
+        catch (err) {
+          console.error(`⚠️ Attempt ${attempt} failed: ${err.message}`);
+               // If it's the last attempt, don't just log, throw it
+          if (attempt === maxRetries) throw new Error("Max retries reached");
+          // ✅ FIX 3: Clear page state before retry (optional but safer)
+            await page.goto('about:blank'); 
+           }
+       // Wait before retrying
+         await new Promise(res => setTimeout(res, 2000));
+       }
+} catch (error) {
+  console.error(
+    "NSE Indices Parsing Error:",
+    error.message
+  );
+
+  return [];
+}
+ finally {
+    if (browser) await browser.close();
+  }
+
+}
+
  //export default { fetchQuote :fetchQuote  , fetchQuoteold:fetchQuoteold };
 
  module.exports = {
@@ -1701,5 +1794,6 @@ try {
     fetchNiftyQuoteold:fetchNiftyQuoteold,
     fetchNiftyIndices:fetchNiftyIndices,
     fetchNiftyIndicesSecond:fetchNiftyIndicesSecond,
-    fetchNiftyIndicesThird:fetchNiftyIndicesThird,
+    fetchNiftyIndicesThird:fetchNiftyIndicesThird, 
+    fetchNiftyIndicesTPlayWright:fetchNiftyIndicesTPlayWright, 
  }
