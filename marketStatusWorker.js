@@ -15,7 +15,7 @@ async function pollMarketStatus() {
     console.log("Fetching market status...");
 
     const response = await axios.get(
-      "http://localhost:3001/api/stockbrowserold/marketstatus",
+      "https://onedinaarvirtualaccount.onrender.com/api/stockbrowserold/marketstatus",
       {
         timeout: 10000
       }

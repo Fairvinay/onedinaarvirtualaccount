@@ -1,6 +1,6 @@
 const express = require("express")
 const bodyParser = require("body-parser")
-const cors = require("cors")
+//const cors = require("cors")
 const state = require("./routes/routes")
 const users = require("./routes/userRoutes.js")
 const market = require("./routes/market.js")
