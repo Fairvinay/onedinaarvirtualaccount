@@ -4,6 +4,8 @@ const cors = require("cors")
 const state = require("./routes/routes")
 const users = require("./routes/userRoutes.js")
 const market = require("./routes/market.js")
+const { startMarketPoller } =
+  require("./marketStatusWorker");
 
 const app = express()
 
@@ -42,4 +44,5 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
     console.log("Started the backend server at port " + PORT)
+    startMarketPoller();
 })

@@ -694,10 +694,246 @@ Add this before goto():*/
     }
   }
   
+
+ /**
+  * NSEINDINA Home page indices 
+  * 
+  * 
+  *  */
+ async function fetchNiftyIndices( maxRetries = 3) {
+
+    let browser;
+  try {
+
+
+        browser = await puppeteer.launch({
+              headless: "new",
+              args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+          });
+  
+          const page = await browser.newPage();
+  
+  
+          // 1. ADD RANDOMIZED VIEWPORT & EMULATE HUMAN
+          await page.setViewport({ 
+              width: 1280 + Math.floor(Math.random() * 100), 
+              height: 800 + Math.floor(Math.random() * 100) 
+          });
+  
+          // 2. USE A ROTATING USER AGENT
+          const userAgents = [
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+          ];
+          await page.setUserAgent(userAgents[Math.floor(Math.random() * userAgents.length)]);
+  
+          /*const page = await browser.newPage();
+  
+          await page.setUserAgent(
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+          );*/
+  
+          await page.setExtraHTTPHeaders({
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,all;q=0.8',
+              'Referer': 'https://www.nseindia.com/',
+              'Connection': 'keep-alive'
+          });
+  
+          await page.setRequestInterception(true);
+          page.on('request', (req) => {
+              if (req.isInterceptResolutionHandled()) return;
+              if (["image", "stylesheet", "font"].includes(req.resourceType())) {
+                  req.abort();
+              } else {
+                  req.continue();
+              }
+          });
+
+          let data = {};
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                    await page.goto(
+                     `https://www.nseindia.com`,
+                      {
+                          waitUntil: "networkidle2",
+                          timeout: 60000
+                      }
+                  );
+
+
+                    await page.waitForSelector(
+                              ".indices-section .slick-track",
+                              {
+                                visible: true,
+                                timeout: 30000
+                              }
+                    );
+
+                  await page.waitForFunction(() => {
+                    return document.querySelectorAll(
+                      ".indices-section .slick-track .slick-slide"
+                    ).length > 0;
+                  });
+
+                const niftyIndices = await page.evaluate(() => {
+
+                  const results = [];
+
+                  try {
+
+                    const slides = Array.from(
+                      document.querySelectorAll(
+                        ".indices-section .slick-track .slick-slide"
+                      )
+                    );
+
+                    for (const slide of slides) {
+
+                      try {
+
+                        //-------------------------------------------------
+                        // Ignore cloned slides
+                        //-------------------------------------------------
+
+                        if (
+                          slide.classList.contains("slick-cloned")
+                        ) {
+                          continue;
+                        }
+
+                        const dataIndex =
+                          parseInt(
+                            slide.getAttribute("data-index") || "-1",
+                            10
+                          );
+
+                        if (dataIndex < 0) {
+                          continue;
+                        }
+
+                        //-------------------------------------------------
+                        // Locate card
+                        //-------------------------------------------------
+
+                        const card = slide.querySelector(
+                          ".indices_details"
+                        );
+
+                        if (!card) {
+                          continue;
+                        }
+
+                        //-------------------------------------------------
+                        // Symbol
+                        //-------------------------------------------------
+
+                        const symbol =
+                          card.querySelector(".symbol")
+                            ?.textContent
+                            ?.trim() || "";
+
+                        //-------------------------------------------------
+                        // Value
+                        //-------------------------------------------------
+
+                        const value =
+                          card.querySelector(".value")
+                            ?.textContent
+                            ?.trim() || "";
+
+                        //-------------------------------------------------
+                        // Change
+                        //-------------------------------------------------
+
+                        const chng =
+                          card.querySelector(".chng")
+                            ?.textContent
+                            ?.trim() || "";
+
+                        //-------------------------------------------------
+                        // Skip bad records
+                        //-------------------------------------------------
+
+                        if (!symbol) {
+                          continue;
+                        }
+
+                        results.push({
+                          symbol,
+                          value,
+                          chng
+                        });
+
+                      } catch (err) {
+                        console.error(
+                          "Error parsing slide",
+                          err
+                        );
+                      }
+                    }
+
+                  } catch (err) {
+                    console.error(
+                      "Error parsing indices section",
+                      err
+                    );
+                  }
+
+                  return results;
+                });
+                   console.log(
+                    JSON.stringify(
+                      niftyIndices,
+                        null,
+                        2
+                    )
+                );
+              if (niftyIndices &&  Arrays.isArray(niftyIndices) && niftyIndices[0].symbol) {
+                  console.log("✅ Success:", niftyIndices.length);
+                  return niftyIndices;
+              }
+
+            }
+          catch (err) {
+            console.error(`⚠️ Attempt ${attempt} failed: ${err.message}`);
+                 // If it's the last attempt, don't just log, throw it
+            if (attempt === maxRetries) throw new Error("Max retries reached");
+            
+            // ✅ FIX 3: Clear page state before retry (optional but safer)
+              await page.goto('about:blank'); 
+             }
+        
+         // Wait before retrying
+           await new Promise(res => setTimeout(res, 2000));
+  
+  
+         }
+
+  } catch (error) {
+
+    console.error(
+      "NSE Indices Parsing Error:",
+      error.message
+    );
+
+    return [];
+  }
+   finally {
+      if (browser) await browser.close();
+    }
+
+
+
+
+}
+ 
  //export default { fetchQuote :fetchQuote  , fetchQuoteold:fetchQuoteold };
 
  module.exports = {
     fetchQuote :fetchQuote ,
     fetchQuoteold:fetchQuoteold,
-    fetchNiftyQuoteold:fetchNiftyQuoteold
+    fetchNiftyQuoteold:fetchNiftyQuoteold,
+    fetchNiftyIndices:fetchNiftyIndices
  }
