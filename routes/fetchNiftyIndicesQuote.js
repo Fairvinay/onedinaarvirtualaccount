@@ -4,8 +4,10 @@
 
 // const puppeteer = require('puppeteer');
 const puppeteer = require("puppeteer-extra");
+const { chromium } = require('playwright-extra');
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require('cheerio');
+const stealth = require('puppeteer-extra-plugin-stealth')();
 let browserInstance = null;
 
 /**
@@ -1054,13 +1056,27 @@ Add this before goto():*/
     puppeteer.use(StealthPlugin());
 
     const browser = await puppeteer.launch({
+      headless: true, // or 'new'
+      args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process'
+      ]
+  });
+  
+  
+  /*  const browser = await puppeteer.launch({
         headless: true,
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
         ]
-    });
+    });*/
     console.log(" fetchNiftyIndices with pupeteer and browser started")
         // browser = await puppeteer.launch({
         //       headless: "new",
@@ -1320,14 +1336,27 @@ try {
   puppeteer.use(StealthPlugin());
 
   const browser = await puppeteer.launch({
+    headless: true, // or 'new'
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process'
+    ]
+});
+
+  /* const browser = await puppeteer.launch({
       headless: true,
       args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
       ]
-  });
-  console.log(" fetchNiftyIndices with pupeteer and browser started")
+  });*/
+  console.log(" fetchNiftyIndicesSecond with pupeteer and browser started")
       // browser = await puppeteer.launch({
       //       headless: "new",
       //       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
@@ -1384,7 +1413,7 @@ try {
                     }
                 );
 
-                console.log("fetchNiftyIndices page.goto task over.");
+                console.log("fetchNiftyIndicesSecond page.goto task over.");
 
             // Wait specifically for the internal content boxes to render in the DOM
           //  await page.waitForSelector('.tab-item .owl-carousel .owl-item', { timeout: 60000 });
@@ -1470,30 +1499,40 @@ async function fetchNiftyIndicesThird( maxRetries = 3) {
 
   let browser;
 try {
+  // Apply the stealth plugin
+   // does not work in windows 
+  //chromium.use(stealth);
   puppeteer.use(StealthPlugin());
+        browser = await puppeteer.launch({
+         headless: true,
+        args: [
+            "--no-sandbox",
+              "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
+         ]
+       });
+         // Launching with args to help in restricted environments
+   /*  // does not work in windows  
+     browser = await chromium.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox',
+            "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
+          ]
+      });
+      
+      const context = await browser.newContext({
+          viewport: { width: 1280, height: 800 },
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      }); */
+       // does not work in windows 
+     // const page = await context.newPage();
+     const page = await browser.newPage();
 
-  const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
-      ]
-  });
-  console.log(" fetchNiftyIndices with pupeteer and browser started")
-      // browser = await puppeteer.launch({
-      //       headless: "new",
-      //       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-      //   });
-
-        const page = await browser.newPage();
-
-
-        // 1. ADD RANDOMIZED VIEWPORT & EMULATE HUMAN
-        await page.setViewport({ 
-            width: 1280 + Math.floor(Math.random() * 100), 
+           // 1. ADD RANDOMIZED VIEWPORT & EMULATE HUMAN
+          await page.setViewport({ 
+           width: 1280 + Math.floor(Math.random() * 100), 
             height: 800 + Math.floor(Math.random() * 100) 
-        });
+      });
 
         // 2. USE A ROTATING USER AGENT
         const userAgents = [
@@ -1501,7 +1540,30 @@ try {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         ];
-        await page.setUserAgent(userAgents[Math.floor(Math.random() * userAgents.length)]);
+       await page.setUserAgent(userAgents[Math.floor(Math.random() * userAgents.length)]);
+
+
+     
+
+
+      // const browser = await puppeteer.launch({
+      //     headless: true,
+      //     args: [
+      //         "--no-sandbox",
+      //         "--disable-setuid-sandbox",
+      //         "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
+      //     ]
+      // });
+      console.log(" fetchNiftyIndicesThird with pupeteer and browser started")
+      // browser = await puppeteer.launch({
+      //       headless: "new",
+      //       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+      //   });
+
+     //   const page = await browser.newPage();
+
+
+     
 
         /*const page = await browser.newPage();
 
@@ -1515,7 +1577,7 @@ try {
             'Referer': 'https://www.nseindia.com/',
             'Connection': 'keep-alive'
         });
-
+        // not working with playwright launched page  this method
         await page.setRequestInterception(true);
         page.on('request', (req) => {
             if (req.isInterceptResolutionHandled()) return;
@@ -1536,8 +1598,9 @@ try {
                         timeout: 60000
                     }
                 );
-
-                console.log("fetchNiftyIndices page.goto task over.");
+                 // Navigate and wait for content
+              //  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                console.log("fetchNiftyIndicesThird page.goto task over.");
 
             // Wait specifically for the internal content boxes to render in the DOM
           //  await page.waitForSelector('.tab-item .owl-carousel .owl-item', { timeout: 60000 });
