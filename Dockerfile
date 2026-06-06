@@ -12,7 +12,7 @@ RUN npm install
 
 # Install chromium for playwright
 RUN npx  playwright install chromium
-RUN npx puppeteer browsers install chromium
+RUN npx puppeteer browsers install chrome
 
 # Copy ALL project files
 COPY . .
