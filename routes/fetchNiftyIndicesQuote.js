@@ -1505,6 +1505,7 @@ try {
   puppeteer.use(StealthPlugin());
         browser = await puppeteer.launch({
          headless: true,
+         executablePath: '/usr/bin/chromium-browser',
         args: [
             "--no-sandbox",
               "--disable-setuid-sandbox",
