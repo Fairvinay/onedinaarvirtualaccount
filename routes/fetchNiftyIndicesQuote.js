@@ -8,6 +8,7 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require('cheerio');
 const stealth = require('puppeteer-extra-plugin-stealth')();
+const axios = require('axios');
 let browserInstance = null;
 
 /**
@@ -1693,6 +1694,63 @@ try {
 
 
 }
+
+async function fetchNiftyIndicesDirectAPI() {
+  const targetDataUrl = 'https://www.nseindia.com/api/allIndices';
+  const baseUrl = 'https://www.nseindia.com/';
+  
+  // Use a clean, non-bot footprint header structure
+  const customHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://www.nseindia.com/market-data/live-market-indices',
+      'Connection': 'keep-alive'
+  };
+
+  try {
+      console.log("⚡ Starting secure API handshake...");
+      
+      // Step 1: Initialize an Axios instance to persist cookies automatically across redirects
+      const session = axios.create({
+          headers: customHeaders,
+          withCredentials: true,
+          timeout: 15000
+      });
+
+      // Step 2: Hit the home page to initialize security state tokens
+      console.log("Retrieving valid session context tokens...");
+      const rootResponse = await session.get(baseUrl);
+      
+      // Extract set-cookie variables returned by the server
+      const cookies = rootResponse.headers['set-cookie'];
+      if (cookies) {
+          session.defaults.headers['Cookie'] = cookies.map(c => c.split(';')[0]).join('; ');
+      }
+
+      // Add a micro-delay simulating human network execution latency
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Step 3: Fetch the raw data from the official allIndices json stream endpoint
+      console.log("Requesting JSON data stream directly from NSE backend core...");
+      const dataResponse = await session.get(targetDataUrl);
+      
+      if (!dataResponse.data || !dataResponse.data.data) {
+          throw new Error("Handshake successful, but data core returned an empty payload.");
+      }
+
+      console.log(`✅ Success! Successfully fetched ${dataResponse.data.data.length} raw index arrays.`);
+      
+      // This returns a clean JSON array of all indices matching the exact dataset of the live table
+      return dataResponse.data.data;
+
+  } catch (error) {
+      console.error("❌ Direct Ingestion Protocol Failed:", error.message);
+      throw error;
+  }
+}
+
+
 async function fetchNiftyIndicesTPlayWright( maxRetries = 3) {
 
   let browser;

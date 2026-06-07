@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const _ = require("lodash");
+const store  = require( "store2");
 const router = express.Router();
 const TradeOrder = require('../models/tradeorder'); // Path to your schema
 //const fetchQuote = require('./fetchQuote'); // Path to your puppeteer fetch 
@@ -7,7 +9,7 @@ const TradeOrder = require('../models/tradeorder'); // Path to your schema
 const { getQuoteWithWorkers } = require('../middleware/quoteService');
 const { fetchQuote , fetchQuoteold , fetchNiftyQuoteold  }  = require('./fetchQuote');
 const {   fetchNiftyIndices , fetchNiftyIndicesSecond , fetchNiftyIndicesThird ,
-    fetchNiftyIndicesTPlayWright
+    fetchNiftyIndicesTPlayWright, fetchNiftyIndicesDirectAPI
 }  = require('./fetchNiftyIndicesQuote');
 const cheerio = require('cheerio');
    const globalStore =
@@ -152,7 +154,742 @@ async function transformTableToResponsiveCards(rawTableHtml) {
      if (indicesData.length === 0) {
       throw new Error("No qualifying indices rows matching standard selector criteria were processed.");
       }
-     
+     else {
+        if(store!== undefined && store !==null){
+             store.set('indicesData', indicesData);
+        }
+        else {
+            console.log("store is not available at the server STORE2 package failed .... ")
+        }
+       
+     }
+    // Generate dynamic card elements
+    /*const cardsMarkup = indicesData.map(item => {
+        const trendColor = item.isNegative ? 'text-red-500' : 'text-emerald-500';
+        const trendBg = item.isNegative ? 'bg-red-50/50' : 'bg-emerald-50/50';
+        const trendBorder = item.isNegative ? 'border-red-100' : 'border-emerald-100';
+        const trendIcon = item.isNegative ? '▼' : '▲';
+
+        return `
+        <div class="bg-white border ${trendBorder} rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between">
+            
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight uppercase">${item.name}</h3>
+                    <span class="flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${trendBg} ${trendColor}">
+                        <span class="mr-1 text-[10px]">${trendIcon}</span> ${item.percentChange}%
+                    </span>
+                </div>
+                
+                <div class="text-2xl font-black tracking-tight text-slate-900 mb-4">
+                    ${item.current}
+                </div>
+            </div>
+
+            <div class="space-y-3.5 border-t border-slate-100 pt-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Open</span>
+                        <span class="text-xs font-bold text-slate-700">${item.open}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">High</span>
+                        <span class="text-xs font-bold text-slate-700 text-emerald-600">${item.high}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Low</span>
+                        <span class="text-xs font-bold text-slate-700 text-red-600">${item.low}</span>
+                    </div>
+                </div>
+
+                <div class="text-xs space-y-1.5 text-slate-600">
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">Prev. Close</span>
+                        <span class="font-semibold text-slate-700">${item.prevClose}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1W Ago <span class="text-[9px] text-slate-300">(29-May)</span></span>
+                        <span class="font-semibold text-slate-700">${item.oneWeekAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1M Ago <span class="text-[9px] text-slate-300">(05-May)</span></span>
+                        <span class="font-semibold text-slate-700">${item.oneMonthAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1Y Ago <span class="text-[9px] text-slate-300">(04-Jun)</span></span>
+                        <span class="font-semibold text-slate-700">${item.oneYearAgo}</span>
+                    </div>
+                    <div class="flex justify-between pt-0.5">
+                        <span class="text-slate-400 font-medium">52W High / Low</span>
+                        <span class="font-bold text-slate-700 text-[11px]">
+                            <span class="text-emerald-600">${item.yearHigh}</span> / <span class="text-red-500">${item.yearLow}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Inject compiled components directly into a unified standalone iframe layout template
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Live Indices Market Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+            body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            /// Custom sleek scrollbar for layout framework track container /
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        </style>
+    </head>
+    <body class="bg-slate-50 p-4 min-h-screen flex items-center justify-center">
+
+        <div class="w-full max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6 px-1">
+                <div>
+                    <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Market Indices Dashboard</h2>
+                    <p class="text-xs text-slate-400 font-medium">Asynchronous Server Feed • Live Tracking</p>
+                </div>
+                <div class="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>System Connected</span>
+                </div>
+            </div>
+
+            <div id="deck-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                ${cardsMarkup}
+            </div>
+        </div>
+
+    </body>
+    </html>
+    `; */
+  } catch (error) {
+    console.error(`🚨 Fallback Triggered: ${error.message}`);
+    
+    // Establish the exact 5 core indices requested as an explicit fallback state
+    const fallbackSymbols = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY BANK", "NIFTY FINANCIAL SERVICES", "NIFTY MIDCAP SELECT"];
+    isFallbackState = true;
+    
+    indicesData = fallbackSymbols.map(symbol => ({
+        name: symbol,
+        current: 'N/A',
+        percentChange: '0.00',
+        open: 'N/A', high: 'N/A', low: 'N/A', indicativeClose: 'N/A',
+        prevClose: 'N/A', oneWeekAgo: 'N/A', oneMonthAgo: 'N/A', oneYearAgo: 'N/A',
+        yearHigh: 'N/A', yearLow: 'N/A',
+        isNegative: false
+    }));
+
+ 
+
+}
+
+// 2. MARKUP COMPILATION PIPELINE
+    const cardsMarkup = indicesData.map(item => {
+        // Fallback or neutral values get a slate theme instead of forcing a fake green trend
+        const isNeutral = item.current === 'N/A';
+        const trendColor = isNeutral ? 'text-slate-400' : (item.isNegative ? 'text-red-500' : 'text-emerald-500');
+        const trendBg = isNeutral ? 'bg-slate-100' : (item.isNegative ? 'bg-red-50/50' : 'bg-emerald-50/50');
+        const trendBorder = isNeutral ? 'border-slate-200' : (item.isNegative ? 'border-red-100' : 'border-emerald-100');
+        const trendIcon = isNeutral ? '•' : (item.isNegative ? '▼' : '▲');
+
+        return `
+        <div class="bg-white border ${trendBorder} rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight uppercase">${item.name}</h3>
+                    <span class="flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${trendBg} ${trendColor}">
+                        <span class="mr-1 text-[10px]">${trendIcon}</span> ${item.percentChange}%
+                    </span>
+                </div>
+                <div class="text-2xl font-black tracking-tight text-slate-900 mb-4 ${isNeutral ? 'opacity-40' : ''}">
+                    ${item.current}
+                </div>
+            </div>
+
+            <div class="space-y-3.5 border-t border-slate-100 pt-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Open</span>
+                        <span class="text-xs font-bold text-slate-700">${item.open}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">High</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.high}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Low</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-red-600'}">${item.low}</span>
+                    </div>
+                </div>
+
+                <div class="text-xs space-y-1.5 text-slate-600">
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">Prev. Close</span>
+                        <span class="font-semibold text-slate-700">${item.prevClose}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1W Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneWeekAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1M Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneMonthAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1Y Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneYearAgo}</span>
+                    </div>
+                    <div class="flex justify-between pt-0.5">
+                        <span class="text-slate-400 font-medium">52W High / Low</span>
+                        <span class="font-bold text-slate-700 text-[11px]">
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.yearHigh}</span> / 
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-red-500'}">${item.yearLow}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Conditional inclusion of the action-oriented recovery banner bottom button
+    const recoveryButtonMarkup = isFallbackState ? `
+    <div class="mt-8 flex flex-col items-center justify-center animate-fade-in">
+        <p class="text-xs font-medium text-slate-400 mb-3">Live stream interrupted. Playground mode active.</p>
+        <button 
+            onclick="window.location.reload();" 
+            class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs px-6 py-3 rounded-full shadow-md shadow-indigo-600/20 transition-all duration-200 cursor-pointer"
+        >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+            </svg>
+            FORCE REFRESH STREAM
+        </button>
+    </div>
+    ` : '';
+
+    const statusBadge = isFallbackState ? `
+    <div class="flex items-center space-x-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+        <span>Offline Playground Mode</span>
+    </div>
+    ` : `
+    <div class="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>System Connected</span>
+    </div>
+    `;
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Indices Market Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+            body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        </style>
+    </head>
+    <body class="bg-slate-50 p-4 min-h-screen flex items-center justify-center">
+
+        <div class="w-full max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6 px-1">
+                <div>
+                    <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Market Indices Dashboard</h2>
+                    <p class="text-xs text-slate-400 font-medium">Asynchronous Server Feed • Live Tracking</p>
+                </div>
+                ${statusBadge}
+            </div>
+
+            <div id="deck-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                ${cardsMarkup}
+            </div>
+
+            ${recoveryButtonMarkup}
+        </div>
+
+    </body>
+    </html>
+    `;
+
+
+}
+/**
+ * Sends a robust POST request with complete exception breakdown.
+ * @param {string} url - Target endpoint URI.
+ * @param {Object} payload - The JSON body payload to transmit.
+ */
+async function sendRobustPostRequest(url, payload) {
+    // Use AbortController for clean network timeouts
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second ceiling
+  
+    try {
+      const config = {
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      };
+      let jsonPayLoad = JSON.stringify(payload);
+      console.log(`Initiating POST request to: ${url}`);
+      const response = await axios.post(url, jsonPayLoad, config);
+      
+      // Clear timeout upon successful resolution
+      clearTimeout(timeoutId);
+      
+      console.log('Request completed successfully!');
+      return response.data;
+  
+    } catch (error) {
+      // Clear timeout inside the catch block to prevent memory leaks
+      clearTimeout(timeoutId);
+  
+      // Differentiate native Axios exceptions from standard JS engine errors
+      if (axios.isAxiosError(error)) {
+        handleAxiosSpecificError(error);
+      } else {
+        handleNativeError(error);
+      }
+      
+      // Bubble up or return a structured fault object depending on your architectural needs
+      throw new Error('API_TRANSACTION_FAILED');
+    }
+  }
+  
+  /**
+   * Parses and processes explicit failures returned or caused by Axios
+   */
+  function handleAxiosSpecificError(error) {
+    if (error.response) {
+      // Scenario A: Server received request and responded with a bad status code (4xx, 5xx)
+      console.error(`[API Error] Received response status: ${error.response.status}`);
+      console.error('[API Error Data]:', JSON.stringify(error.response.data, null, 2));
+      console.error('[API Error Headers]:', error.response.headers);
+      
+    } else if (error.request) {
+      // Scenario B: The request was dispatched but no receipt acknowledgment was returned
+      if (error.code === 'ERR_CANCELED' || error.name === 'AbortError') {
+        console.error('[Network Error] Connection terminated: Request timed out.');
+      } else {
+        console.error('[Network Error] Request dispatched but no response captured:', error.message);
+      }
+    } else {
+      // Scenario C: Something triggered an anomaly while constructing the request configurations
+      console.error('[Axios Setup Error] Issue during payload/config assembly:', error.message);
+    }
+  }
+  
+  /**
+   * Captures non-network exceptions like local ReferenceErrors or Null pointers
+   */
+  function handleNativeError(error) {
+    console.error('[Runtime Error] Critical non-network system error occurred:', error.message);
+  }
+
+async function transformNiftyIndicesArrayToResponsiveCards(niftyIndices){
+
+    try {
+
+        
+// 2. MARKUP COMPILATION PIPELINE
+    const cardsMarkup = indicesData.map(item => {
+        // Fallback or neutral values get a slate theme instead of forcing a fake green trend
+        const isNeutral = item.current === 'N/A';
+        const trendColor = isNeutral ? 'text-slate-400' : (item.isNegative ? 'text-red-500' : 'text-emerald-500');
+        const trendBg = isNeutral ? 'bg-slate-100' : (item.isNegative ? 'bg-red-50/50' : 'bg-emerald-50/50');
+        const trendBorder = isNeutral ? 'border-slate-200' : (item.isNegative ? 'border-red-100' : 'border-emerald-100');
+        const trendIcon = isNeutral ? '•' : (item.isNegative ? '▼' : '▲');
+
+        return `
+        <div class="bg-white border ${trendBorder} rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight uppercase">${item.name}</h3>
+                    <span class="flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${trendBg} ${trendColor}">
+                        <span class="mr-1 text-[10px]">${trendIcon}</span> ${item.percentChange}%
+                    </span>
+                </div>
+                <div class="text-2xl font-black tracking-tight text-slate-900 mb-4 ${isNeutral ? 'opacity-40' : ''}">
+                    ${item.current}
+                </div>
+            </div>
+
+            <div class="space-y-3.5 border-t border-slate-100 pt-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Open</span>
+                        <span class="text-xs font-bold text-slate-700">${item.open}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">High</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.high}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Low</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-red-600'}">${item.low}</span>
+                    </div>
+                </div>
+
+                <div class="text-xs space-y-1.5 text-slate-600">
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">Prev. Close</span>
+                        <span class="font-semibold text-slate-700">${item.prevClose}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1W Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneWeekAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1M Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneMonthAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1Y Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneYearAgo}</span>
+                    </div>
+                    <div class="flex justify-between pt-0.5">
+                        <span class="text-slate-400 font-medium">52W High / Low</span>
+                        <span class="font-bold text-slate-700 text-[11px]">
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.yearHigh}</span> / 
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-red-500'}">${item.yearLow}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Conditional inclusion of the action-oriented recovery banner bottom button
+    const recoveryButtonMarkup = isFallbackState ? `
+    <div class="mt-8 flex flex-col items-center justify-center animate-fade-in">
+        <p class="text-xs font-medium text-slate-400 mb-3">Live stream interrupted. Playground mode active.</p>
+        <button 
+            onclick="window.location.reload();" 
+            class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs px-6 py-3 rounded-full shadow-md shadow-indigo-600/20 transition-all duration-200 cursor-pointer"
+        >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+            </svg>
+            FORCE REFRESH STREAM
+        </button>
+    </div>
+    ` : '';
+
+    const statusBadge = isFallbackState ? `
+    <div class="flex items-center space-x-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+        <span>Offline Playground Mode</span>
+    </div>
+    ` : `
+    <div class="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>System Connected</span>
+    </div>
+    `;
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Indices Market Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+            body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        </style>
+    </head>
+    <body class="bg-slate-50 p-4 min-h-screen flex items-center justify-center">
+
+        <div class="w-full max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6 px-1">
+                <div>
+                    <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Market Indices Dashboard</h2>
+                    <p class="text-xs text-slate-400 font-medium">Asynchronous Server Feed • Live Tracking</p>
+                </div>
+                ${statusBadge}
+            </div>
+
+            <div id="deck-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                ${cardsMarkup}
+            </div>
+
+            ${recoveryButtonMarkup}
+        </div>
+
+    </body>
+    </html>
+    `;
+    }
+    catch(erre){
+        console.log('Nifty indices array conversion to cards failed ');
+         // Establish the exact 5 core indices requested as an explicit fallback state
+        const fallbackSymbols = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY BANK", "NIFTY FINANCIAL SERVICES", "NIFTY MIDCAP SELECT"];
+        isFallbackState = true;
+        
+        indicesData = fallbackSymbols.map(symbol => ({
+            name: symbol,
+            current: 'N/A',
+            percentChange: '0.00',
+            open: 'N/A', high: 'N/A', low: 'N/A', indicativeClose: 'N/A',
+            prevClose: 'N/A', oneWeekAgo: 'N/A', oneMonthAgo: 'N/A', oneYearAgo: 'N/A',
+            yearHigh: 'N/A', yearLow: 'N/A',
+            isNegative: false
+        }));
+
+        const cardsMarkup = indicesData.map(item => {
+            // Fallback or neutral values get a slate theme instead of forcing a fake green trend
+            const isNeutral = item.current === 'N/A';
+            const trendColor = isNeutral ? 'text-slate-400' : (item.isNegative ? 'text-red-500' : 'text-emerald-500');
+            const trendBg = isNeutral ? 'bg-slate-100' : (item.isNegative ? 'bg-red-50/50' : 'bg-emerald-50/50');
+            const trendBorder = isNeutral ? 'border-slate-200' : (item.isNegative ? 'border-red-100' : 'border-emerald-100');
+            const trendIcon = isNeutral ? '•' : (item.isNegative ? '▼' : '▲');
+    
+            return `
+            <div class="bg-white border ${trendBorder} rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-sm font-bold text-slate-800 tracking-tight uppercase">${item.name}</h3>
+                        <span class="flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${trendBg} ${trendColor}">
+                            <span class="mr-1 text-[10px]">${trendIcon}</span> ${item.percentChange}%
+                        </span>
+                    </div>
+                    <div class="text-2xl font-black tracking-tight text-slate-900 mb-4 ${isNeutral ? 'opacity-40' : ''}">
+                        ${item.current}
+                    </div>
+                </div>
+    
+                <div class="space-y-3.5 border-t border-slate-100 pt-4">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-slate-50 p-2 rounded-lg">
+                            <span class="block text-[10px] uppercase font-semibold text-slate-400">Open</span>
+                            <span class="text-xs font-bold text-slate-700">${item.open}</span>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-lg">
+                            <span class="block text-[10px] uppercase font-semibold text-slate-400">High</span>
+                            <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.high}</span>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-lg">
+                            <span class="block text-[10px] uppercase font-semibold text-slate-400">Low</span>
+                            <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-red-600'}">${item.low}</span>
+                        </div>
+                    </div>
+    
+                    <div class="text-xs space-y-1.5 text-slate-600">
+                        <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                            <span class="text-slate-400 font-medium">Prev. Close</span>
+                            <span class="font-semibold text-slate-700">${item.prevClose}</span>
+                        </div>
+                        <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                            <span class="text-slate-400 font-medium">1W Ago</span>
+                            <span class="font-semibold text-slate-700">${item.oneWeekAgo}</span>
+                        </div>
+                        <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                            <span class="text-slate-400 font-medium">1M Ago</span>
+                            <span class="font-semibold text-slate-700">${item.oneMonthAgo}</span>
+                        </div>
+                        <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                            <span class="text-slate-400 font-medium">1Y Ago</span>
+                            <span class="font-semibold text-slate-700">${item.oneYearAgo}</span>
+                        </div>
+                        <div class="flex justify-between pt-0.5">
+                            <span class="text-slate-400 font-medium">52W High / Low</span>
+                            <span class="font-bold text-slate-700 text-[11px]">
+                                <span class="${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.yearHigh}</span> / 
+                                <span class="${isNeutral ? 'text-slate-700' : 'text-red-500'}">${item.yearLow}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+    
+        // Conditional inclusion of the action-oriented recovery banner bottom button
+        const recoveryButtonMarkup = isFallbackState ? `
+        <div class="mt-8 flex flex-col items-center justify-center animate-fade-in">
+            <p class="text-xs font-medium text-slate-400 mb-3">Live stream interrupted. Playground mode active.</p>
+            <button 
+                onclick="window.location.reload();" 
+                class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs px-6 py-3 rounded-full shadow-md shadow-indigo-600/20 transition-all duration-200 cursor-pointer"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+                </svg>
+                FORCE REFRESH STREAM
+            </button>
+        </div>
+        ` : '';
+    
+        const statusBadge = isFallbackState ? `
+        <div class="flex items-center space-x-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>Offline Playground Mode</span>
+        </div>
+        ` : `
+        <div class="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>System Connected</span>
+        </div>
+        `;
+    
+        return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Indices Market Dashboard</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+                body { font-family: 'Plus Jakarta Sans', sans-serif; }
+                ::-webkit-scrollbar { width: 6px; height: 6px; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+            </style>
+        </head>
+        <body class="bg-slate-50 p-4 min-h-screen flex items-center justify-center">
+    
+            <div class="w-full max-w-7xl mx-auto">
+                <div class="flex items-center justify-between mb-6 px-1">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Market Indices Dashboard</h2>
+                        <p class="text-xs text-slate-400 font-medium">Asynchronous Server Feed • Live Tracking</p>
+                    </div>
+                    ${statusBadge}
+                </div>
+    
+                <div id="deck-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                    ${cardsMarkup}
+                </div>
+    
+                ${recoveryButtonMarkup}
+            </div>
+    
+        </body>
+        </html>
+        `;
+    }
+}
+
+async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequest) {
+    // Load the HTML DOM fragment into Cheerio
+   
+    const indicesData = [];
+    let isFallbackState = false;
+
+
+    // 1. CHEERIO EXCEPTION & EMPTY HTML HANDLING
+    try {
+      if (!rawTableHtml || typeof rawTableHtml !== 'string' || rawTableHtml.trim() === "") {
+          throw new Error("Empty or invalid raw HTML input string received from scrap engine.");
+      }
+
+      const $ = cheerio.load(rawTableHtml);
+      // Target table row extraction
+      const rows = $('tr');
+      if (rows.length === 0) {
+          throw new Error("Cheerio loaded the fragment successfully, but found zero NIFTY INDICES elements.");
+      }
+    // Parse out data rows from the table structure
+    $('tr').each((index, element) => {
+        const row = $(element);
+        const nameAnchor = row.find('td[headers*="indexCol"] a');
+        
+        if (nameAnchor.length > 0) {
+            const indexName = nameAnchor.text().trim();
+            
+            // Extract text nodes safely via positional header mappings
+            const current = row.find('td:nth-child(2)').text().trim();
+            const percentChange = row.find('td:nth-child(3)').text().trim();
+            const open = row.find('td:nth-child(4)').text().trim();
+            const high = row.find('td:nth-child(5)').text().trim();
+            const low = row.find('td:nth-child(6)').text().trim();
+            const indicativeClose = row.find('td:nth-child(7)').text().trim();
+            const prevClose = row.find('td:nth-child(8)').text().trim();
+            const prevDay = row.find('td:nth-child(9)').text().trim();
+            const oneWeekAgo = row.find('td:nth-child(10)').text().trim();
+            const oneMonthAgo = row.find('td:nth-child(11)').text().trim();
+            const oneYearAgo = row.find('td:nth-child(12)').text().trim();
+            const yearHigh = row.find('td:nth-child(13)').text().trim();
+            const yearLow = row.find('td:nth-child(14)').text().trim();
+
+            // Determine trend context (positive/negative movement)
+            const isNegative = row.find('td:nth-child(3)').hasClass('redTxt') || parseFloat(percentChange) < 0;
+
+            indicesData.push({
+                name: indexName,
+                current,
+                percentChange,
+                open,
+                high,
+                low,
+                indicativeClose: indicativeClose === '-' ? 'N/A' : indicativeClose,
+                prevClose,
+                prevDay,
+                oneWeekAgo,
+                oneMonthAgo,
+                oneYearAgo,
+                yearHigh,
+                yearLow,
+                isNegative
+            });
+        }
+    });
+
+     // Double check if data mapping actually succeeded
+     if (indicesData.length === 0) {
+      throw new Error("No qualifying indices rows matching standard selector criteria were processed.");
+      }
+     else {
+        if(store!== undefined && store !==null){
+             store.set('indicesData', indicesData);
+             //check is a local server refresh and new indices have been parsed 
+             if(isLocalRequest){
+                // post the request to the server or the remote render.com 
+                const targetUrl = process.env.SEND_INDICES_TO_SERVER;
+                 
+
+                sendRobustPostRequest(targetUrl, indicesData)
+                .then(data => console.log('Parsed Server Yield:', data))
+                .catch(() => console.log('Transaction halted. Local safeguards executed successfully.'));
+
+
+
+
+
+
+
+             }
+        }
+        else {
+            console.log("store is not available at the server STORE2 package failed .... ")
+        }
+       
+     }
     // Generate dynamic card elements
     /*const cardsMarkup = indicesData.map(item => {
         const trendColor = item.isNegative ? 'text-red-500' : 'text-emerald-500';
@@ -420,6 +1157,226 @@ async function transformTableToResponsiveCards(rawTableHtml) {
 
 }
 
+
+async function transformJsonToResponsiveCards(indicesArray) {
+
+
+   
+    // If the array is empty or blocked, the existing fallback arrays take over
+    if (!indicesArray || indicesArray === null || !Array.isArray(indicesArray)) {
+        // Trigger your current fallback mechanics here...
+
+         // Establish the exact 5 core indices requested as an explicit fallback state
+    const fallbackSymbols = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY BANK", "NIFTY FINANCIAL SERVICES", "NIFTY MIDCAP SELECT"];
+    isFallbackState = true;
+    
+    indicesData = fallbackSymbols.map(symbol => ({
+        name: symbol,
+        current: 'N/A',
+        percentChange: '0.00',
+        open: 'N/A', high: 'N/A', low: 'N/A', indicativeClose: 'N/A',
+        prevClose: 'N/A', oneWeekAgo: 'N/A', oneMonthAgo: 'N/A', oneYearAgo: 'N/A',
+        yearHigh: 'N/A', yearLow: 'N/A',
+        isNegative: false
+    }));
+
+ 
+
+ 
+
+// 2. MARKUP COMPILATION PIPELINE
+    const cardsMarkup = indicesData.map(item => {
+        // Fallback or neutral values get a slate theme instead of forcing a fake green trend
+        const isNeutral = item.current === 'N/A';
+        const trendColor = isNeutral ? 'text-slate-400' : (item.isNegative ? 'text-red-500' : 'text-emerald-500');
+        const trendBg = isNeutral ? 'bg-slate-100' : (item.isNegative ? 'bg-red-50/50' : 'bg-emerald-50/50');
+        const trendBorder = isNeutral ? 'border-slate-200' : (item.isNegative ? 'border-red-100' : 'border-emerald-100');
+        const trendIcon = isNeutral ? '•' : (item.isNegative ? '▼' : '▲');
+
+        return `
+        <div class="bg-white border ${trendBorder} rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight uppercase">${item.name}</h3>
+                    <span class="flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${trendBg} ${trendColor}">
+                        <span class="mr-1 text-[10px]">${trendIcon}</span> ${item.percentChange}%
+                    </span>
+                </div>
+                <div class="text-2xl font-black tracking-tight text-slate-900 mb-4 ${isNeutral ? 'opacity-40' : ''}">
+                    ${item.current}
+                </div>
+            </div>
+
+            <div class="space-y-3.5 border-t border-slate-100 pt-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Open</span>
+                        <span class="text-xs font-bold text-slate-700">${item.open}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">High</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.high}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Low</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-red-600'}">${item.low}</span>
+                    </div>
+                </div>
+
+                <div class="text-xs space-y-1.5 text-slate-600">
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">Prev. Close</span>
+                        <span class="font-semibold text-slate-700">${item.prevClose}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1W Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneWeekAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1M Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneMonthAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1Y Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneYearAgo}</span>
+                    </div>
+                    <div class="flex justify-between pt-0.5">
+                        <span class="text-slate-400 font-medium">52W High / Low</span>
+                        <span class="font-bold text-slate-700 text-[11px]">
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.yearHigh}</span> / 
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-red-500'}">${item.yearLow}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Conditional inclusion of the action-oriented recovery banner bottom button
+    const recoveryButtonMarkup = isFallbackState ? `
+    <div class="mt-8 flex flex-col items-center justify-center animate-fade-in">
+        <p class="text-xs font-medium text-slate-400 mb-3">Live stream interrupted. Playground mode active.</p>
+        <button 
+            onclick="window.location.reload();" 
+            class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs px-6 py-3 rounded-full shadow-md shadow-indigo-600/20 transition-all duration-200 cursor-pointer"
+        >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+            </svg>
+            FORCE REFRESH STREAM
+        </button>
+    </div>
+    ` : '';
+
+    const statusBadge = isFallbackState ? `
+    <div class="flex items-center space-x-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+        <span>Offline Playground Mode</span>
+    </div>
+    ` : `
+    <div class="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>System Connected</span>
+    </div>
+    `;
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Indices Market Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+            body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        </style>
+    </head>
+    <body class="bg-slate-50 p-4 min-h-screen flex items-center justify-center">
+
+        <div class="w-full max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6 px-1">
+                <div>
+                    <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Market Indices Dashboard</h2>
+                    <p class="text-xs text-slate-400 font-medium">Asynchronous Server Feed • Live Tracking</p>
+                </div>
+                ${statusBadge}
+            </div>
+
+            <div id="deck-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                ${cardsMarkup}
+            </div>
+
+            ${recoveryButtonMarkup}
+        </div>
+
+    </body>
+    </html>
+    `;
+
+
+
+
+
+
+
+
+
+
+    }
+    // Inside your transformJsonToResponsiveCards layout mapping iteration:
+    // Map through the direct properties returned from the allIndices endpoint
+    const cardsMarkup = indicesArray.map(item => {
+        // Properties matched directly to the corporate API dictionary keys
+       /* const name = item.index || 'N/A';
+        const current = item.last ? item.last.toLocaleString('en-IN') : 'N/A';
+        const percentChange = item.percentChange !== undefined ? item.percentChange : '0.00';
+        const open = item.open ? item.open.toLocaleString('en-IN') : 'N/A';
+        const high = item.high ? item.high.toLocaleString('en-IN') : 'N/A';
+        const low = item.low ? item.low.toLocaleString('en-IN') : 'N/A';
+        const prevClose = item.previousClose ? item.previousClose.toLocaleString('en-IN') : 'N/A';
+        
+        const isNegative = parseFloat(percentChange) < 0;*/
+        // Exact mapping matches to the live NSE allIndices API response properties
+        const name = item.index || 'N/A';
+        const current = item.last ? item.last.toLocaleString('en-IN') : 'N/A';
+        const percentChange = item.percentChange !== undefined ? item.percentChange : '0.00';
+        
+        const open = item.open ? item.open.toLocaleString('en-IN') : 'N/A';
+        const high = item.high ? item.high.toLocaleString('en-IN') : 'N/A';
+        const low = item.low ? item.low.toLocaleString('en-IN') : 'N/A';
+        const prevClose = item.previousClose ? item.previousClose.toLocaleString('en-IN') : 'N/A';
+        
+        // Multi-period historical records present in the JSON stream payload
+        const oneWeekAgo = item.oneWeekAgoVal ? item.oneWeekAgoVal.toLocaleString('en-IN') : 'N/A';
+        const oneMonthAgo = item.oneMonthAgoVal ? item.oneMonthAgoVal.toLocaleString('en-IN') : 'N/A';
+        const oneYearAgo = item.oneYearAgoVal ? item.oneYearAgoVal.toLocaleString('en-IN') : 'N/A';
+        
+        const yearHigh = item.yearHigh ? item.yearHigh.toLocaleString('en-IN') : 'N/A';
+        const yearLow = item.yearLow ? item.yearLow.toLocaleString('en-IN') : 'N/A';
+        
+        const isNegative = parseFloat(percentChange) < 0;
+
+ 
+
+
+        // Reuse the exact Tailwind carousel/card layout built in the previous milestone
+        return `
+        <div class="snap-center shrink-0 w-[85vw] sm:w-[45vw] md:w-auto bg-white border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <h3>${name}</h3>
+            <div>${current}</div>
+            </div>
+        `;
+    }).join('');
+
+    return `<!DOCTYPE html>...${cardsMarkup}...</html>`;
+}
+
 /**
  * @param {*} rawhtml 
  *  
@@ -607,6 +1564,84 @@ async function transformTableToResponsiveCardsCarousel(rawTableHtml) {
     `;
 }
 
+router.post("/stockbrowser-allindicesfromlocal/send",   (req, res) => {
+
+
+    try {
+    const tailwindIndicesHTML  = _.pick(req.body, ["liveindicestailwindhtml"   ])
+    const allNiftyIndices = _.pick(req.body, ["jsonPayLoad"   ])
+    //transformTableToResponsiveCards
+    /**
+     const store  = require( "store2");
+       store.set('isDelivered', isDelivered);
+
+     */
+     // 1. Get the requested URL Hostname (e.g., 'localhost', '127.0.0.1', or 'example.com')
+     const requestedHost = req.hostname;
+     let isLocal = false;
+     // 2. Get the Client's Connecting IP Address
+     const clientIp = req.ip;
+
+     // Target values you want to validate against
+     const TARGET_IP = process.env.INDICES_SERVER_LOCAL_IP; 
+
+     // Check if the requested host is localhost
+     const isLocalhostRequest = (requestedHost === 'localhost' || requestedHost === '127.0.0.1' || requestedHost === '::1');
+
+     // Check if the client matching a specific target IP
+     // Note: Node often reads IPv4 as IPv6-mapped strings like '::ffff:192.168.1.50'
+     const isTargetIp = (clientIp === TARGET_IP || clientIp === `::ffff:${TARGET_IP}`);
+
+     // Business logic based on your validation
+     if (isLocalhostRequest && isTargetIp) {
+         isLocal = true;
+     }
+     if (!isLocal){ 
+        if(store !==undefined && store !==null){
+            if(allNiftyIndices !== undefined && allNiftyIndices !==null ){
+
+                store.set("indicesData", allNiftyIndices);
+                console.log("SERVER with NIFTY INDICES  UPDATED "+new Date().toLocaleDateString())
+                console.log(` ${JSON.stringify(allNiftyIndices)}`)
+            }
+            else {
+                let oldIndicies = store.get('indicesData');
+                if(oldIndicies!==null && oldIndicies !== undefined){
+                    console.log("SERVER with NIFTY INDICES not UPDATED ")
+                    console.log(` ${JSON.stringify(oldIndicies)}`)
+
+                }
+
+            }
+
+        }
+     }
+    if(tailwindIndicesHTML !== undefined && tailwindIndicesHTML !==null){
+        // check is a valid HTML 
+
+          // 1. CHEERIO PARSING ENGINE
+    try {
+        if (  typeof tailwindIndicesHTML !== 'string' || tailwindIndicesHTML.trim() === "") {
+            throw new Error("Empty HTML fragment input.");
+        }
+        const $ = cheerio.load(tailwindIndicesHTML);
+
+      
+      } catch(err)  {
+            res.send(err)
+        }
+        const $ = cheerio.load(rawTableHtml);
+         
+    }
+
+
+
+
+     } catch(err1)  {
+    res.send(err1)
+}
+    
+})
 router.get('/stockbrowser/:symbol', async (req, res) => {
     console.log(`🚀 INVOKED  /stockbrowser/:symbol : ${req.params.symbol}`);
     console.log(`🚀 INVOKING WORKER RACE FOR: ${req.params.symbol}`);
@@ -745,7 +1780,45 @@ router.get('/stockbrowserold/marketstatus', async (req, res) => {
 
         // 2. Transmute data layers out of standard tables into rich modular UI template
         //const responsiveDashboardHtml = await transformTableToResponsiveCardsCarousel(niftyIndices);
-        const responsiveDashboardHtml = await transformTableToResponsiveCards (niftyIndices);
+        // 1. Get the requested URL Hostname (e.g., 'localhost', '127.0.0.1', or 'example.com')
+        const requestedHost = req.hostname;
+        let isLocal = false;
+        // 2. Get the Client's Connecting IP Address
+        const clientIp = req.ip;
+
+        // Target values you want to validate against
+        const TARGET_IP = process.env.INDICES_SERVER_LOCAL_IP; 
+
+        // Check if the requested host is localhost
+        const isLocalhostRequest = (requestedHost === 'localhost' || requestedHost === '127.0.0.1' || requestedHost === '::1');
+
+        // Check if the client matching a specific target IP
+        // Note: Node often reads IPv4 as IPv6-mapped strings like '::ffff:192.168.1.50'
+        const isTargetIp = (clientIp === TARGET_IP || clientIp === `::ffff:${TARGET_IP}`);
+        let  responsiveDashboardHtml = ""
+        // Business logic based on your validation
+        if (isLocalhostRequest && isTargetIp) {
+            isLocal = true; 
+             responsiveDashboardHtml = await transformTableToResponsiveCardsWithPoll (niftyIndices, isLocal);
+        }
+        else {
+            // check the nifty indices updated from LOCAL SERVER POST 
+            if(store !==null && store!==undefined){
+                let localNiftyIndices = store.get('indicesData');
+                if(localNiftyIndices !==null && localNiftyIndices!==undefined && Array.isArray(localNiftyIndices) &&localNiftyIndices.length > 0 ){
+
+                    responsiveDashboardHtml = await transformNiftyIndicesArrayToResponsiveCards(localNiftyIndices)
+                }
+                else {
+                    console.log(`  SERVER store DID NOT RECEIVE NIFTY INDICES FROM LOCAL SERVER   `, );     
+                }
+            }
+            else {
+                console.log(`  SERVER store not defined  `, );        
+            }
+        }
+
+        
         
         
 
@@ -930,6 +2003,71 @@ router.get('/stockbrowserold/:symbol', async (req, res) => {
             message: `Ensure your puppeteer is parsing the nseindia with right selectore is valid.`
         });
     }   
+});
+
+
+/**
+ * @route   GET /api/market-dashboard
+ * @desc    Serves up compiled, ultra-fast, mobile responsive index carousel cards
+ * @access  Public (Used natively by your frontend Iframe micro-wrapper)
+ */
+router.get('/stockbrowser-allindices/market-dashboard', async (req, res) => {
+    console.log(`\n📥 [${new Date().toISOString()}] Incoming request at /api/stockbrowser-allindices/market-dashboard`);
+    
+    // Set response header to HTML immediately so the Iframe knows how to render the output stream
+    res.setHeader('Content-Type', 'text/html');
+
+    try {
+        // 1. Fire the lightweight session cookie handshake and JSON extraction loop
+        const rawJsonData = await fetchNiftyIndicesDirectAPI();
+
+        // 2. Filter down the massive 70+ index array to the specific target metrics
+        // This ensures your mobile carousel is neat and doesn't load unneeded indexes
+        const targetIndices = ["NIFTY 50", "NIFTY NEXT 50", "NIFTY BANK", "NIFTY FINANCIAL SERVICES", "NIFTY MIDCAP SELECT"];
+        
+        let filteredData = [];
+        if (Array.isArray(rawJsonData)) {
+            filteredData = rawJsonData.filter(item => 
+                item && item.index && targetIndices.includes(item.index.toUpperCase().trim())
+            );
+        }
+
+        // If the filtering left us with an empty array due to an upstream schema alteration, trigger the fallback pipeline
+        if (filteredData.length === 0) {
+            console.warn("⚠️ API structure matched but zero target indices cleared the filter array.");
+            // Passing null ensures the transformation engine safely serves up the empty playground cards
+            const fallbackHtml = transformJsonToResponsiveCards(null);
+            return res.status(200).send(fallbackHtml);
+        }
+
+        // 3. Compile the clean corporate data layer directly into your Tailwind scroll-snap view
+        console.log(`⚡ Generating responsive card UI layouts for ${filteredData.length} valid indices...`);
+        const fullyCompiledHtml = transformJsonToResponsiveCards(filteredData);
+        
+        // Return 200 OK with the standalone functional document structure
+        return res.status(200).send(fullyCompiledHtml);
+
+    } catch (routeError) {
+        // GLOBAL EXCEPTION CATCHING BLOCK
+        console.error("🚨 Route Exception Caught during runtime execution:", routeError.message);
+        
+        // Instead of breaking the pipeline or sending a broken 502/500 text chunk to the client,
+        // we feed null into the converter, generating the elegant "Offline Playground Mode" view layout.
+        try {
+            const proactiveRecoveryHtml = transformJsonToResponsiveCards(null);
+            return res.status(200).send(proactiveRecoveryHtml);
+        } catch (renderingSystemError) {
+            // Ultimate fallback safety baseline in case the template literal compilation itself breaks
+            console.error("Critical Failure inside template rendering compilation block:", renderingSystemError.message);
+            return res.status(500).send(`
+                <div style="font-family:sans-serif; padding:30px; text-align:center; color:#64748b; background:#f8fafc;">
+                    <h3 style="color:#f43f5e;">System Link Interrupted</h3>
+                    <p style="font-size:13px;">Critical rendering framework timeout. Please try again later.</p>
+                    <button onclick="window.location.reload();" style="background:#4f46e5; color:white; border:0; padding:10px 20px; border-radius:20px; font-weight:bold; font-size:12px; cursor:pointer; margin-top:10px;">Re-initialize Connection</button>
+                </div>
+            `);
+        }
+    }
 });
 
 // GET /api/stock/:symbol
