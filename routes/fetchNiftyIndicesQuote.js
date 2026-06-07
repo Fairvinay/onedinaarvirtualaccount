@@ -1704,8 +1704,11 @@ try {
    browser = await chromium.launch({
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox',
-            "--disable-dev-shm-usage"   // "--disable-blink-features=AutomationControlled"
-          ]
+            "--disable-dev-shm-usage",   // "--disable-blink-features=AutomationControlled"
+              '--disable-web-security',
+             '--disable-features=IsolateOrigins,site-per-process',
+            '--blink-features=AutomationControlled', // Evades fundamental automated driver checking
+            ]
       });
       const userAgents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -1714,9 +1717,12 @@ try {
     ];
    const context = await browser.newContext({
           viewport: { width: 1280, height: 800 },
-          userAgent:userAgents[Math.floor(Math.random() * userAgents.length)]
+          userAgent:userAgents[Math.floor(Math.random() * userAgents.length)],
           // 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-      });  
+          locale: 'en-US',
+          timezoneId: 'Asia/Kolkata', // Matches target exchange operational parameters
+      
+        });  
        // usually does not work on windoes 
     const page = await context.newPage();
     console.log(" fetchNiftyIndicesTPlayWright with chromium and browser started")
@@ -1731,13 +1737,19 @@ try {
     let data = {};
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                  await page.goto(
-                   `https://www.nseindia.com/market-data/live-market-indices`,
-                    {
-                      waitUntil:   'networkidle' ,// 'domcontentloaded',
-                        timeout: 160000
-                    }
-                );
+              console.log("Priming security session via NSE home page...");
+            await page.goto('https://www.nseindia.com/', { 
+                waitUntil: 'domcontentloaded', 
+               timeout: 30000 
+              });
+
+           // Introduce a human-like operational pause for cookies to settle
+            await page.waitForTimeout(2500);   
+            console.log("Navigating to target indices asset table...");
+            await page.goto('https://www.nseindia.com/market-data/live-market-indices', {
+                waitUntil: 'networkidle', // Wait for the data fetch to settle
+                timeout: 145000
+            });
                  // Navigate and wait for content
               //  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
                 console.log("fetchNiftyIndicesTPlayWright page.goto task over.");

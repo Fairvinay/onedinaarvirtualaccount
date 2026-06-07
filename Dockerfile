@@ -1,5 +1,7 @@
 # Use Playwright base image (already includes Node)
-FROM mcr.microsoft.com/playwright:focal
+#FROM mcr.microsoft.com/playwright:focal
+# Use the official lightweight Playwright Linux environment
+FROM mcr.microsoft.com/playwright:v1.42.0-jammy
 
 # Set working directory
 WORKDIR /app
@@ -7,8 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-RUN apt-get update && apt-get install -y wget gnupg && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google.list && apt-get update && apt-get install -y google-chrome-stable
-
+#RUN apt-get update && apt-get install -y wget gnupg && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google.list && apt-get update && apt-get install -y google-chrome-stable
+RUN npm ci
 
 # Install dependencies
 RUN npm install
