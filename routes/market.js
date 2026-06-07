@@ -4,6 +4,7 @@ const _ = require("lodash");
 const store  = require( "store2");
 const router = express.Router();
 const TradeOrder = require('../models/tradeorder'); // Path to your schema
+const {   NiftyAllIndices } = require("../models/niftyallindices")
 //const fetchQuote = require('./fetchQuote'); // Path to your puppeteer fetch 
 //const fetchQuoteold = require('./fetchQuote'); // Path to your puppeteer fetch 
 const { getQuoteWithWorkers } = require('../middleware/quoteService');
@@ -873,11 +874,11 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
                 const targetUrl = process.env.SEND_INDICES_TO_SERVER;
                  
 
-                sendRobustPostRequest(targetUrl, indicesData)
+               /* sendRobustPostRequest(targetUrl, indicesData)
                 .then(data => console.log('Parsed Server Yield:', data))
                 .catch(() => console.log('Transaction halted. Local safeguards executed successfully.'));
 
-
+             */
 
 
 
@@ -1784,33 +1785,94 @@ router.get('/stockbrowserold/marketstatus', async (req, res) => {
         const requestedHost = req.hostname;
         let isLocal = false;
         // 2. Get the Client's Connecting IP Address
-        const clientIp = req.ip;
-
+        // this does not work 
+        // const clientIp = req.ip;
+        const clientIp = req.query.ip !== undefined &&  req.query.ip !== null &&  req.query.ip !== "" ? req.query.ip  : "";
+        console.log(`  SERVER req.ip ${req.ip}  `, );     
         // Target values you want to validate against
         const TARGET_IP = process.env.INDICES_SERVER_LOCAL_IP; 
 
         // Check if the requested host is localhost
         const isLocalhostRequest = (requestedHost === 'localhost' || requestedHost === '127.0.0.1' || requestedHost === '::1');
-
+        console.log(`  SERVER isLocalhostRequest  ${isLocalhostRequest}  `, );     
         // Check if the client matching a specific target IP
         // Note: Node often reads IPv4 as IPv6-mapped strings like '::ffff:192.168.1.50'
         const isTargetIp = (clientIp === TARGET_IP || clientIp === `::ffff:${TARGET_IP}`);
+        console.log(`  SERVER isTargetIp  ${isTargetIp}  `, );   
         let  responsiveDashboardHtml = ""
         // Business logic based on your validation
         if (isLocalhostRequest && isTargetIp) {
             isLocal = true; 
              responsiveDashboardHtml = await transformTableToResponsiveCardsWithPoll (niftyIndices, isLocal);
+             // the LOCAL to REMOTE SERVER approach failed so storing the 
+             // responsiveDashboardHTML to MongoDB and it will reload it later at the REMOTE 
+                 // Encode the HTML string to Base64
+                const encodedHtml = Buffer.from(responsiveDashboardHtml, 'utf-8').toString('base64');
+                let saveDate = Date.now();
+             newindices = {  encodedHtml: encodedHtml , updatedAt:saveDate   }
+             try { 
+              // Perform the upsert operation
+                const latestRecord = await NiftyAllIndices.findOneAndUpdate({}, newindices, {
+                    upsert: true, // Inserts the document if it does not exist
+                    new: true,    // Returns the newly updated/inserted document
+                    setDefaultsOnInsert: true // Applies schema defaults if a new doc is created
+                });
+  
+              console.log("Nifty Indices responsive dashboard html  DECODED  :    " );
+              const decodedHtml = Buffer.from(latestRecord.encodedHtml, 'base64').toString('utf-8');
+              console.log(`${decodedHtml}` );
+
+
+            } catch (error) {
+                console.error("Error upserting record:", error);
+              }
+             /*let niftyIndices = new NifyAllIndices(newbody)
+
+             niftyIndices.save().then(() => {
+                        console.log('NIFTY indices saved '+saveDate.toLocaleDateString())
+             }) .catch(err => {
+                 res.status(400).send(err)
+             })*/
+
         }
         else {
             // check the nifty indices updated from LOCAL SERVER POST 
             if(store !==null && store!==undefined){
                 let localNiftyIndices = store.get('indicesData');
+                let dbResponsiveDashboardHTML = store.get('responsiveDashboardHtml');
                 if(localNiftyIndices !==null && localNiftyIndices!==undefined && Array.isArray(localNiftyIndices) &&localNiftyIndices.length > 0 ){
 
                     responsiveDashboardHtml = await transformNiftyIndicesArrayToResponsiveCards(localNiftyIndices)
                 }
+                else if (dbResponsiveDashboardHTML!==undefined && dbResponsiveDashboardHTML !== null && dbResponsiveDashboardHTML !== ""){
+
+                    responsiveDashboardHtml = dbResponsiveDashboardHTML
+                    console.log("Nifty Indices responsive dashboard html  from STORE2  :    " );
+                  
+                    console.log(`${responsiveDashboardHtml}` );
+                }
                 else {
-                    console.log(`  SERVER store DID NOT RECEIVE NIFTY INDICES FROM LOCAL SERVER   `, );     
+                    console.log(`  SERVER store DID NOT RECEIVE NIFTY INDICES FROM LOCAL SERVER NOR RESPONSIVE HTML in DB    `, );    
+                    
+                    // check of the responsiveDashboardHTML is present in MongoDB , get the latest record
+                     // Latest created record
+                    //const latestCreated = await MyModel.findOne().sort({ createdAt: -1 });
+
+                    // Latest updated record
+                    const latestUpdated = await NiftyAllIndices.findOne().sort({ updatedAt: -1 });
+                    if(latestUpdated !==undefined && latestUpdated !== null){
+                          // Decode the Base64 string back to pure HTML
+                        const decodedHtml = Buffer.from(latestUpdated.encodedHtml, 'base64').toString('utf-8');
+                        store.set('responsiveDashboardHtml',decodedHtml);
+                        console.log("HTML successfully retrieved and decoded.");
+                        responsiveDashboardHtml = decodedHtml
+                        console.log(`${responsiveDashboardHtml}` );
+                       // return decodedHtml;
+                    }
+                    else {
+                        console.log(" NIFTY INDICES responsiveDashboardHTML retrieved and decoded  FAILED   FAILED   FAILED .");
+                    }
+
                 }
             }
             else {

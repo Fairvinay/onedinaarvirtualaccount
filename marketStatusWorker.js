@@ -36,12 +36,13 @@ async function pollMarketStatus() {
       globalStore.tableLiveIndices = response.data;
       globalStore.lastUpdated = new Date();
       globalStore.failCount = 0;
-
+      if(response.data !==""){ 
       console.log(
         `Cached  table live indices html indices`
       );
 
       clearInterval(timer);
+       }
     }
 
   } catch (err) {
