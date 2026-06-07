@@ -1726,14 +1726,16 @@ try {
             'Referer': 'https://www.nseindia.com/',
             'Connection': 'keep-alive'
         });
+        // Changes navigation timeout for this page to 60 seconds
+    page.setDefaultNavigationTimeout(60000); 
     let data = {};
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                   await page.goto(
                    `https://www.nseindia.com/market-data/live-market-indices`,
                     {
-                      waitUntil: 'domcontentloaded',
-                        timeout: 60000
+                      waitUntil:   'networkidle' ,// 'domcontentloaded',
+                        timeout: 160000
                     }
                 );
                  // Navigate and wait for content
@@ -1743,7 +1745,7 @@ try {
             // Wait specifically for the internal content boxes to render in the DOM
             // Step 3: Wait cleanly for the correct element ID selector targeting
             console.log("Waiting for #liveindexTable to establish structural render...");
-            await page.waitForSelector('#liveindexTable', { timeout: 60000 });
+            await page.waitForSelector('#liveindexTable', { timeout: 160000 });
             // Step 4: Isolate and extract just the inner HTML string of that single element layout
             const tableHTML = await page.evaluate(async () => {
               const tableElement = document.querySelector('#liveindexTable');
