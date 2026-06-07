@@ -17,7 +17,7 @@ async function pollMarketStatus() {
     const response = await axios.get(
       "https://onedinaarvirtualaccount.onrender.com/api/stockbrowserold/marketstatus",
       {
-        timeout: 10000
+        timeout: 60000
       }
     );
 
