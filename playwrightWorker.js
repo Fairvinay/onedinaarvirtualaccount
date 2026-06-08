@@ -1,15 +1,26 @@
 const { workerData, parentPort } = require('worker_threads');
-
+const {
+    Worker, isMainThread,  
+  } = require('node:worker_threads');
 const { chromium } = require('playwright-extra');
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require('cheerio');
 const stealth = require('puppeteer-extra-plugin-stealth')();
+const store  = require( "store2");
+//import { fileURLToPath } from 'node:url';
+const fs =  require('node:fs');
 
 let browserInstance = null;
 let liveIndexTableHTML = "";
 let liveIndicesData = [];
 let i = 0;
 let MAXWORKERTRIES = 15; 
+
+//const outputFile = './playwrightworker_data.txt';
+//const writeStream = fs.createWriteStream(outputFile, {
+//    flags: 'a',
+//  });
+  const workerName = workerData.name;
 /**
  * Initializes the browser once and handles "zombie" process prevention
  */
@@ -380,8 +391,9 @@ try {
 async function runPlaywright() {
     const { url } = workerData;
   parentPort.postMessage({ status: 'started', message: `Launching browser for ${url}` });
-
-  
+ // if(writeStream !==undefined && writeStream !==null){ 
+    console.log(` [worker_write]${workerName} ${Date.now()}  Launching browser for ${url}  \r\n `);
+//   }
   try {
      while (i < MAXWORKERTRIES ) {  
     await fetchNiftyIndicesTPlayWright(3)
@@ -392,16 +404,55 @@ async function runPlaywright() {
     if (liveIndexTableHTML !=="" && liveIndicesData.length  > 0) { 
 
         console.log(" playwright worker seems to have parsed nify live indices ")
-         parentPort.postMessage({ status: 'success', data: { html: liveIndexTableHTML , indices : liveIndicesData } });
+        if (isMainThread) {
+        }
+        else { 
+        //    if(writeStream !==undefined && writeStream !==null){ 
+           console.log(`[worker_write]${workerName} ${Date.now()}    playwright worker seems to have parsed nify live indices \r\n `);
+            console.log((`   ${liveIndexTableHTML } \r\n`);
 
+           console.log(`  ----------- \r\n`);
+           console.log(`  -----------  \r\n`);
+           console.log((`   ----------- \r\n `);
+
+           console.log(`  ${JSON.stringify(liveIndicesData)} \r\n`);
+       // }
+        } 
+        
+        parentPort.postMessage({ status: 'success', data: { html: liveIndexTableHTML , indices : liveIndicesData } });
+            break;
     }
       i= i+1;
       console.log(" playwright worker psring "+i+" time nify live indices ")
+
+      if (isMainThread) {
+       /* for( let k = 0; k < 10; k++) {
+          const workerName = `worker_${k}`;
+          const worker = new Worker(__filename, { workerData: workerName });
+          writeStream.write(`[worker_created]${workerName}\r\n`);
+        }*/
+      } else {
+      //  if(writeStream !==undefined && writeStream !==null){ 
+         console.log(`[worker_started]${workerName}     playwright worker psring ${i} time nify live indices         \r\n`);
+      //  }
+      
+      }
+
+
+
+
+
     }
    
   } catch (error) {
     parentPort.postMessage({ status: 'error', error: error.message });
+   // if(writeStream !==undefined && writeStream !==null){ 
+       console.log((`[worker_started]${workerName}     playwright worker   ${JSON.stringify( error.message)} \r\n`);
+   // }
   } finally {
+   // if(writeStream !==undefined && writeStream !==null){ 
+       console.log(`[worker_write]${workerName} ${Date.now()}     [worker_finished]${workerName} \r\n`);
+   // }
    // await browser.close();
     console.log('closeing the worker ')
     //process.exit(0); // Cleanly exit worker when task finishes

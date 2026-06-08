@@ -9,6 +9,12 @@ const store  = require( "store2");
 const { startMarketPoller } =
   require("./marketStatusWorker");
   const { Worker } = require('worker_threads');
+  const fs =  require('node:fs');
+//const outputFile = './backend_start_data.txt';
+//const writeStream = fs.createWriteStream(outputFile, {
+//    flags: 'a',
+//  });
+
 const app = express()
 
 // Body Parser Middleware
@@ -44,10 +50,21 @@ app.get("/", (req, res) => {
 })
 // Start the Playwright Worker
 const playwrightWorker = new Worker(path.resolve(__dirname, 'playwrightWorker.js'), {
-    workerData: { url: 'https://www.nseindia.com/market-data/live-market-indices' }
+    workerData: { url: 'https://www.nseindia.com/market-data/live-market-indices' , name: "playwrightWorker" }
   });
+
+ // if(writeStream !==undefined && writeStream !==null){ 
+    if(playwrightWorker !==undefined && playwrightWorker !==null){ 
+         console.log(`  ${Date.now()}   PLAYWRIGHT WORKER STARTED https://www.nseindia.com/market-data/live-market-indices  \r\n `);
+  //  }
+ //  }  
   playwrightWorker.on('message', (msg) => {
     console.log(`[Main] Message from Playwright Worker:`, msg);
+  //  if(writeStream !==undefined && writeStream !==null){ 
+    
+          console.log(`  ${Date.now()}   Message from Playwright Worker:  \r\n `);
+      
+   //  }  
     if (msg !== null && msg !==undefined  ){
         let html = msg.html;
         let indices = msg.indices;
@@ -56,6 +73,11 @@ const playwrightWorker = new Worker(path.resolve(__dirname, 'playwrightWorker.js
         
                         store.set("indicesData", indices);
                         console.log("SERVER with NIFTY INDICES  UPDATED "+new Date().toLocaleDateString())
+                       // if(writeStream !==undefined && writeStream !==null){ 
+    
+                          console.log(`  ${Date.now()}  Playwright Worker: SERVER with NIFTY INDICES  UPDATED  \r\n `);
+                      
+                   //  }  
                         console.log(` ${JSON.stringify(indices)}`)
                     }
                     else {
@@ -63,6 +85,11 @@ const playwrightWorker = new Worker(path.resolve(__dirname, 'playwrightWorker.js
                         if(oldIndicies!==null && oldIndicies !== undefined){
                             console.log("SERVER with NIFTY INDICES not UPDATED ")
                             console.log(` ${JSON.stringify(oldIndicies)}`)
+                           // if(writeStream !==undefined && writeStream !==null){ 
+    
+                              console.log(`  ${Date.now()}  Playwright Worker: SERVER with NIFTY INDICES not UPDATED  \r\n `);
+                          
+                          //   }  
         
                         }
         
@@ -83,12 +110,19 @@ const playwrightWorker = new Worker(path.resolve(__dirname, 'playwrightWorker.js
   });
 // Start the MongoDB Worker
 const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
-    workerData: { mongoUri: 'mongodb://localhost:27017', dbName: 'myDatabase' }
+    workerData: { mongoUri: 'mongodb://localhost:27017', dbName: 'myDatabase' ,  name: "mongoWorker" }
   });
   
   mongoWorker.on('message', (msg) => {
     console.log(`[Main] Message from Mongo Worker:`, msg);
 
+   // if(writeStream !==undefined && writeStream !==null){ 
+      if(mongoWorker !==undefined && mongoWorker !==null){ 
+          console.log(`  ${Date.now()}   MONGO DB WORKER  STARTED   \r\n `);
+    //  }
+   //  }  
+     
+     
     if (msg !== null && msg !==undefined  ){
         let html = msg.html;
         let indices = msg.indices;
@@ -98,12 +132,23 @@ const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
                         store.set("indicesData", indices);
                         console.log("SERVER with NIFTY INDICES  UPDATED from MongoDB"+new Date().toLocaleDateString())
                         console.log(` ${JSON.stringify(indices)}`)
+                     //   if(writeStream !==undefined && writeStream !==null){ 
+    
+                           console.log(`  ${Date.now()}  MONGO DB WORKER : SERVER with NIFTY INDICES  UPDATED from MongoDB \r\n `);
+                      
+                    //    }  
+
                     }
                     else {
                         let oldIndicies = store.get('indicesData');
                         if(oldIndicies!==null && oldIndicies !== undefined){
                             console.log("SERVER with NIFTY INDICES not UPDATED from MongoDB ")
                             console.log(` ${JSON.stringify(oldIndicies)}`)
+                          //  if(writeStream !==undefined && writeStream !==null){ 
+    
+                               console.log(`  ${Date.now()}   MONGO DB WORKER : SERVER with NIFTY INDICES not UPDATED from MongoDB   \r\n `);
+                          
+                          //   }  
         
                         }
         
@@ -113,6 +158,13 @@ const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
                         store.set("responsiveDashboardHtml", html);
                         console.log("SERVER with responsiveDashboardHtml NIFTY INDICES  UPDATED from MongoDB"+new Date().toLocaleDateString())
                         console.log(` ${html}`)
+                      //  if(writeStream !==undefined && writeStream !==null){ 
+    
+                          console.log(`  ${Date.now()}   MONGO DB WORKER : SERVER with responsiveDashboardHtml NIFTY INDICES  UPDATED from MongoDB   \r\n `);
+                      
+                      //   }  
+
+
                     }
 
 
