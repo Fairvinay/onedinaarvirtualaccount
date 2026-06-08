@@ -56,6 +56,7 @@ const playwrightWorker = new Worker(path.resolve(__dirname, 'playwrightWorker.js
  // if(writeStream !==undefined && writeStream !==null){ 
     if(playwrightWorker !==undefined && playwrightWorker !==null){ 
          console.log(`  ${Date.now()}   PLAYWRIGHT WORKER STARTED https://www.nseindia.com/market-data/live-market-indices  \r\n `);
+    }
   //  }
  //  }  
   playwrightWorker.on('message', (msg) => {
@@ -117,7 +118,7 @@ const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
     console.log(`[Main] Message from Mongo Worker:`, msg);
 
    // if(writeStream !==undefined && writeStream !==null){ 
-      if(mongoWorker !==undefined && mongoWorker !==null){ 
+   //   if(mongoWorker !==undefined && mongoWorker !==null){ 
           console.log(`  ${Date.now()}   MONGO DB WORKER  STARTED   \r\n `);
     //  }
    //  }  
@@ -173,8 +174,8 @@ const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
         
                 }
                 
-    }
-
+     }
+   //   }
 
 
 

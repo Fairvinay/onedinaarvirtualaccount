@@ -409,11 +409,11 @@ async function runPlaywright() {
         else { 
         //    if(writeStream !==undefined && writeStream !==null){ 
            console.log(`[worker_write]${workerName} ${Date.now()}    playwright worker seems to have parsed nify live indices \r\n `);
-            console.log((`   ${liveIndexTableHTML } \r\n`);
+            console.log(`   ${liveIndexTableHTML } \r\n`);
 
            console.log(`  ----------- \r\n`);
            console.log(`  -----------  \r\n`);
-           console.log((`   ----------- \r\n `);
+           console.log(`   ----------- \r\n `);
 
            console.log(`  ${JSON.stringify(liveIndicesData)} \r\n`);
        // }
@@ -447,7 +447,7 @@ async function runPlaywright() {
   } catch (error) {
     parentPort.postMessage({ status: 'error', error: error.message });
    // if(writeStream !==undefined && writeStream !==null){ 
-       console.log((`[worker_started]${workerName}     playwright worker   ${JSON.stringify( error.message)} \r\n`);
+       console.log(`[worker_started]${workerName}     playwright worker   ${JSON.stringify( error.message)} \r\n`);
    // }
   } finally {
    // if(writeStream !==undefined && writeStream !==null){ 
