@@ -14,7 +14,7 @@ let browserInstance = null;
 let liveIndexTableHTML = "";
 let liveIndicesData = [];
 let i = 0;
-let MAXWORKERTRIES = 15; 
+let MAXWORKERTRIES = 4; 
 
 //const outputFile = './playwrightworker_data.txt';
 //const writeStream = fs.createWriteStream(outputFile, {
