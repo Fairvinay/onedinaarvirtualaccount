@@ -1893,6 +1893,115 @@ router.post('/nseallindices', async (req, res) => {
             console.warn("⚠️ Database query executed successfully, but collection 'nseallindices' contains zero records.");
             
             if (typeof writeStream !== 'undefined' && writeStream !== null) { 
+                 console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker query executed successfully, but collection is empty. \r\n`);
+            }      
+
+            return res.status(200).json({
+                success: true,
+                message: "No index records found inside collection 'nseallindices'.",
+                data: []
+            });
+        }
+
+        // 3. CORRECT DEEP ARRAY CLONING LAYER
+        // Use Array.from or spread patterns for arrays instead of Object.assign to keep array array methods active
+        const liveIndicesData = [...uniqueIndices];
+
+        console.log(`✅ Success! Pulled ${liveIndicesData.length} distinct index records from Atlas.`);
+        if (typeof writeStream !== 'undefined' && writeStream !== null) { 
+            console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker Success! Pulled ${liveIndicesData.length} records. \r\n`);
+        }      
+
+        // 4. STREAM CLEAN JSON PAYLOAD DOWN TO CLIENT INSTANCE
+        return res.status(200).json({
+            success: true,
+            count: liveIndicesData.length,
+            data: liveIndicesData
+        });
+
+    } catch (mongooseError) {
+        console.error("🚨 Mongoose Query Exception Intercepted:", mongooseError.message);
+        
+        if (typeof writeStream !== 'undefined' && writeStream !== null) { 
+            console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker Query Exception: ${mongooseError.message} \r\n`);
+        }     
+
+        return res.status(500).json({
+            success: false,
+            code: "DATABASE_ERROR",
+            message: mongooseError.message
+        });
+    }
+});
+router.get('/nseallindices', async (req, res) => {
+    // Append standard payload safety origins explicitly for standard requests
+    res.header("Access-Control-Allow-Origin", "*");
+
+    const workerName = "ExpressRouterWorker"; // Fallback identifier for logging streams
+
+    try {
+        console.log(`\n📥 [${new Date().toISOString()}] POST request at /api/nseallindices`);
+
+        // 1. EXECUTE UNIQUE DE-DUPLICATION AGGREGATION PIPELINE
+        const uniqueIndices = await NseAllIndices.aggregate([
+            { 
+                // Step A: Sort descending by updatedAt so the freshest data floats to the top
+                $sort: { updatedAt: -1 } 
+            },
+            {
+                // Step B: Group by the unique index name field
+                $group: {
+                    _id: "$name",
+                    current: { $first: "$current" },
+                    percentChange: { $first: "$percentChange" },
+                    open: { $first: "$open" },
+                    high: { $first: "$high" },
+                    low: { $first: "$low" },
+                    indicativeClose: { $first: "$indicativeClose" },
+                    prevClose: { $first: "$prevClose" },
+                    prevDay: { $first: "$prevDay" },
+                    oneWeekAgo: { $first: "$oneWeekAgo" },
+                    oneMonthAgo: { $first: "$oneMonthAgo" },
+                    oneYearAgo: { $first: "$oneYearAgo" },
+                    yearHigh: { $first: "$yearHigh" },
+                    yearLow: { $first: "$yearLow" },
+                    isNegative: { $first: "$isNegative" },
+                    updatedAt: { $first: "$updatedAt" }
+                }
+            },
+            {
+                // Step C: Project the grouped fields back into a clean object structure
+                $project: {
+                    _id: 0,
+                    name: "$_id",
+                    current: 1,
+                    percentChange: 1,
+                    open: 1,
+                    high: 1,
+                    low: 1,
+                    indicativeClose: 1,
+                    prevClose: 1,
+                    prevDay: 1,
+                    oneWeekAgo: 1,
+                    oneMonthAgo: 1,
+                    oneYearAgo: 1,
+                    yearHigh: 1,
+                    yearLow: 1,
+                    isNegative: 1,
+                    updatedAt: 1
+                }
+            },
+            {
+                // Step D: Sort alphabetically by index name
+                $sort: { name: 1 }
+            }
+        ]).exec();
+
+        // 2. CHECK FOR EMPTY DATA RECORDS
+        if (!uniqueIndices || uniqueIndices.length === 0) {
+            console.warn("⚠️ Database query executed successfully, but collection 'nseallindices' contains zero records.");
+            
+            if (typeof writeStream !== 'undefined' && writeStream !== null) { 
                console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker query executed successfully, but collection is empty. \r\n`);
             }      
 
@@ -1909,7 +2018,7 @@ router.post('/nseallindices', async (req, res) => {
 
         console.log(`✅ Success! Pulled ${liveIndicesData.length} distinct index records from Atlas.`);
         if (typeof writeStream !== 'undefined' && writeStream !== null) { 
-            writeStream.write(`[worker_write]${workerName} ${Date.now()} mongoDB worker Success! Pulled ${liveIndicesData.length} records. \r\n`);
+            console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker Success! Pulled ${liveIndicesData.length} records. \r\n`);
         }      
 
         // 4. STREAM CLEAN JSON PAYLOAD DOWN TO CLIENT INSTANCE
@@ -1923,7 +2032,7 @@ router.post('/nseallindices', async (req, res) => {
         console.error("🚨 Mongoose Query Exception Intercepted:", mongooseError.message);
         
         if (typeof writeStream !== 'undefined' && writeStream !== null) { 
-            writeStream.write(`[worker_write]${workerName} ${Date.now()} mongoDB worker Query Exception: ${mongooseError.message} \r\n`);
+           console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker Query Exception: ${mongooseError.message} \r\n`);
         }     
 
         return res.status(500).json({
