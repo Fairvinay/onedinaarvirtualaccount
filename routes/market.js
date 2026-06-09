@@ -5,9 +5,17 @@ const store  = require( "store2");
 const router = express.Router();
 const TradeOrder = require('../models/tradeorder'); // Path to your schema
 const {   NiftyAllIndices } = require("../models/niftyallindices")
+const {   NseAllIndices } = require("../models/nseallindices")
 //const fetchQuote = require('./fetchQuote'); // Path to your puppeteer fetch 
 //const fetchQuoteold = require('./fetchQuote'); // Path to your puppeteer fetch 
 const { getQuoteWithWorkers } = require('../middleware/quoteService');
+  const fs =  require('node:fs');
+//const outputFile = './backend_start_data.txt';
+//const writeStream = fs.createWriteStream(outputFile, {
+//    flags: 'a',
+//  });
+
+const writeStream =undefined;
 const { fetchQuote , fetchQuoteold , fetchNiftyQuoteold  }  = require('./fetchQuote');
 const {   fetchNiftyIndices , fetchNiftyIndicesSecond , fetchNiftyIndicesThird ,
     fetchNiftyIndicesTPlayWright, fetchNiftyIndicesDirectAPI
@@ -795,7 +803,14 @@ async function transformNiftyIndicesArrayToResponsiveCards(niftyIndices){
         `;
     }
 }
-
+// Example data update routine executed by your local data poller script
+async function updateDatabaseIndex(scrapedDataCard) {
+    await NseAllIndices.findOneAndUpdate(
+        { name: scrapedDataCard.name }, // Matches document by its core name identity
+        scrapedDataCard,                 // Pushes the fresh payload values directly
+        { upsert: true, new: true }      // If it doesn't exist yet, insert it; otherwise, update it
+    );
+}
 async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequest) {
     // Load the HTML DOM fragment into Cheerio
    
@@ -872,14 +887,44 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
              if(isLocalRequest){
                 // post the request to the server or the remote render.com 
                 const targetUrl = process.env.SEND_INDICES_TO_SERVER;
-                 
+                let saveDate = Date.now();
+                indicesData.forEach(async (nseIndex )  => {
+                  let newindices = Object.assign ({} , nseIndex); //  {  encodedHtml: encodedHtml , updatedAt:saveDate   }
+                try { 
+                 // Perform the upsert operation
+                   const insertedNseRecord = await NseAllIndices.findOneAndUpdate({}, newindices, {
+                       upsert: true, // Inserts the document if it does not exist
+                       new: true,    // Returns the newly updated/inserted document
+                       setDefaultsOnInsert: true // Applies schema defaults if a new doc is created
+                   });
+     
+                 console.log("NSE Index inserted in Mongo DB  :    " );
+               //  const decodedHtml = Buffer.from(latestRecord.encodedHtml, 'base64').toString('utf-8');
+                   console.log(`NSE inserted record `)
+                   console.log(` ${JSON.stringify(insertedNseRecord)}`)
+                  // if(writeStream !==undefined && writeStream !==null){ 
+                       console.log(`  ${Date.now().toLocaleString()} NSE Index  transformTableToResponsiveCardsWithPoll :    \r\n `);
+                        console.log(`    NSE Index inserted in Mongo DB  :    \r\n `);
+                        console.log(`   ${JSON.stringify(insertedNseRecord)}   \r\n `);
+                 //  }  
+                 //console.log(`${decodedHtml}` );
+   
+   
+               } catch (error) {
+                   console.error(`Error upserting NSE Index ${nseIndex.name} record:`, error);
+                   if(writeStream !==undefined && writeStream !==null){ 
+                    writeStream.write(`  ${Date.now().toLocaleString()} NSE Index INSERT  ERROR :    \r\n `);
+                     writeStream.write(`  Error upserting NSE Index ${nseIndex.name} record: \r\n `, error );
+                     
+                   }  
+                 }
 
                /* sendRobustPostRequest(targetUrl, indicesData)
                 .then(data => console.log('Parsed Server Yield:', data))
                 .catch(() => console.log('Transaction halted. Local safeguards executed successfully.'));
 
              */
-
+                } ); 
 
 
 
@@ -888,6 +933,11 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
         }
         else {
             console.log("store is not available at the server STORE2 package failed .... ")
+           // if(writeStream !==undefined && writeStream !==null){ 
+                 console.log(`  ${Date.now().toLocaleString()} NSE Index STORE  :    \r\n `);
+                 console.log(` store is not available at the server STORE2 package failed ....  \r\n `  );
+                 
+           //    }  
         }
        
      }
@@ -1767,8 +1817,122 @@ router.get('/stockbrowserold2/:symbol', async (req, res) => {
         });
     }   
 });
+// Handle pre-flight OPTIONS check seamlessly across your production domains
+router.options('/nseallindices', (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+    return res.status(204).end();
+});
+router.post('/nseallindices', async (req, res) => {
+    // Append standard payload safety origins explicitly for standard requests
+    res.header("Access-Control-Allow-Origin", "*");
 
+    const workerName = "ExpressRouterWorker"; // Fallback identifier for logging streams
 
+    try {
+        console.log(`\n📥 [${new Date().toISOString()}] POST request at /api/nseallindices`);
+
+        // 1. EXECUTE UNIQUE DE-DUPLICATION AGGREGATION PIPELINE
+        const uniqueIndices = await NseAllIndices.aggregate([
+            { 
+                // Step A: Sort descending by updatedAt so the freshest data floats to the top
+                $sort: { updatedAt: -1 } 
+            },
+            {
+                // Step B: Group by the unique index name field
+                $group: {
+                    _id: "$name",
+                    current: { $first: "$current" },
+                    percentChange: { $first: "$percentChange" },
+                    open: { $first: "$open" },
+                    high: { $first: "$high" },
+                    low: { $first: "$low" },
+                    indicativeClose: { $first: "$indicativeClose" },
+                    prevClose: { $first: "$prevClose" },
+                    prevDay: { $first: "$prevDay" },
+                    oneWeekAgo: { $first: "$oneWeekAgo" },
+                    oneMonthAgo: { $first: "$oneMonthAgo" },
+                    oneYearAgo: { $first: "$oneYearAgo" },
+                    yearHigh: { $first: "$yearHigh" },
+                    yearLow: { $first: "$yearLow" },
+                    isNegative: { $first: "$isNegative" },
+                    updatedAt: { $first: "$updatedAt" }
+                }
+            },
+            {
+                // Step C: Project the grouped fields back into a clean object structure
+                $project: {
+                    _id: 0,
+                    name: "$_id",
+                    current: 1,
+                    percentChange: 1,
+                    open: 1,
+                    high: 1,
+                    low: 1,
+                    indicativeClose: 1,
+                    prevClose: 1,
+                    prevDay: 1,
+                    oneWeekAgo: 1,
+                    oneMonthAgo: 1,
+                    oneYearAgo: 1,
+                    yearHigh: 1,
+                    yearLow: 1,
+                    isNegative: 1,
+                    updatedAt: 1
+                }
+            },
+            {
+                // Step D: Sort alphabetically by index name
+                $sort: { name: 1 }
+            }
+        ]).exec();
+
+        // 2. CHECK FOR EMPTY DATA RECORDS
+        if (!uniqueIndices || uniqueIndices.length === 0) {
+            console.warn("⚠️ Database query executed successfully, but collection 'nseallindices' contains zero records.");
+            
+            if (typeof writeStream !== 'undefined' && writeStream !== null) { 
+               console.log(`[worker_write]${workerName} ${Date.now()} mongoDB worker query executed successfully, but collection is empty. \r\n`);
+            }      
+
+            return res.status(200).json({
+                success: true,
+                message: "No index records found inside collection 'nseallindices'.",
+                data: []
+            });
+        }
+
+        // 3. CORRECT DEEP ARRAY CLONING LAYER
+        // Use Array.from or spread patterns for arrays instead of Object.assign to keep array array methods active
+        const liveIndicesData = [...uniqueIndices];
+
+        console.log(`✅ Success! Pulled ${liveIndicesData.length} distinct index records from Atlas.`);
+        if (typeof writeStream !== 'undefined' && writeStream !== null) { 
+            writeStream.write(`[worker_write]${workerName} ${Date.now()} mongoDB worker Success! Pulled ${liveIndicesData.length} records. \r\n`);
+        }      
+
+        // 4. STREAM CLEAN JSON PAYLOAD DOWN TO CLIENT INSTANCE
+        return res.status(200).json({
+            success: true,
+            count: liveIndicesData.length,
+            data: liveIndicesData
+        });
+
+    } catch (mongooseError) {
+        console.error("🚨 Mongoose Query Exception Intercepted:", mongooseError.message);
+        
+        if (typeof writeStream !== 'undefined' && writeStream !== null) { 
+            writeStream.write(`[worker_write]${workerName} ${Date.now()} mongoDB worker Query Exception: ${mongooseError.message} \r\n`);
+        }     
+
+        return res.status(500).json({
+            success: false,
+            code: "DATABASE_ERROR",
+            message: mongooseError.message
+        });
+    }
+});
 router.get('/stockbrowserold/marketstatus', async (req, res) => {
  
     console.log(` REQUEST at /stockbrowserold/marketstatus`, );        

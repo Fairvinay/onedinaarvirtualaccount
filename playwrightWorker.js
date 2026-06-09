@@ -7,6 +7,7 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cheerio = require('cheerio');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const store  = require( "store2");
+const {   NseAllIndices } = require("./models/nseallindices")
 //import { fileURLToPath } from 'node:url';
 const fs =  require('node:fs');
 
@@ -14,7 +15,7 @@ let browserInstance = null;
 let liveIndexTableHTML = "";
 let liveIndicesData = [];
 let i = 0;
-let MAXWORKERTRIES = 4; 
+let MAXWORKERTRIES = 2; 
 
 //const outputFile = './playwrightworker_data.txt';
 //const writeStream = fs.createWriteStream(outputFile, {
@@ -52,8 +53,63 @@ async function getBrowser() {
 
     return browserInstance;
 }
+// Example data update routine executed by your local data poller script
+/* not updating or rather inserts blanck records 
+  async function updateDatabaseIndex(scrapedDataCard) {
+    await NseAllIndices.findOneAndUpdate(
+        { name: scrapedDataCard.name }, // Matches document by its core name identity
+        scrapedDataCard,                 // Pushes the fresh payload values directly
+        { upsert: true, new: true }      // If it doesn't exist yet, insert it; otherwise, update it
+    );
+}*/
+// Example data update routine executed by your local data poller script
+async function updateDatabaseIndex(scrapedDataCard) {
+    // Add the "return" keyword so the resolved document moves out of the function scope
+    return await NseAllIndices.findOneAndUpdate(
+        { name: scrapedDataCard.name }, 
+        scrapedDataCard,                 
+        { 
+            upsert: true, 
+            new: true,
+            setDefaultsOnInsert: true // Ensures schema defaults are initialized
+        }
+    );
+}
+// --- Replace your indicesData.forEach block with this safe sequential pattern ---
 
+async function saveAllMarketIndices(indicesData) {
+    // Elegant for...of structure natively supports async/await pauses
+    for (const nseIndex of indicesData) {
+        try {
+            // Clone the index object clean framework references
+            let newindices = Object.assign({}, nseIndex); 
+            
+            // Await the return payload properly
+            const insertedNseRecord = await updateDatabaseIndex(newindices);
+            
+            console.log(`NSE Index processed in MongoDB: ${nseIndex.name}`);
+            console.log(`Inserted Record: ${JSON.stringify(insertedNseRecord)}`);
+            
+            // If the record returns cleanly, write the real data to the stream logs
+           // if (writeStream) { 
+                const logTime = new Date().toLocaleString();
+                 console.log(`[${logTime}] NSE Index transformTableToResponsiveCardsWithPoll:\r\n`);
+                 console.log(`   Status: Database Upsert Confirmed\r\n`);
+                console.log(`   Payload: ${JSON.stringify(insertedNseRecord)}\r\n\r\n`);
+          //  }   
 
+        } catch (error) {
+            console.error(`Error upserting NSE Index ${nseIndex.name} record:`, error);
+            
+           // if (writeStream) { 
+                const logTime = new Date().toLocaleString();
+               console.log(`[${logTime}] NSE Index INSERT CRITICAL ERROR:\r\n`);
+                 console.log(`   Target Index: ${nseIndex.name}\r\n`);
+                 console.log(`   Message: ${error.message}\r\n\r\n`);
+         //   }  
+        }
+    }
+}
 async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequest) {
     // Load the HTML DOM fragment into Cheerio
    
@@ -130,17 +186,44 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
              if(isLocalRequest){
                 // post the request to the server or the remote render.com 
                 const targetUrl = process.env.SEND_INDICES_TO_SERVER;
-                if(indicesData !==undefined && indicesData !== null && indicesData.length > 0)
-                {
-                liveIndicesData = indicesData;
+                let saveDate = Date.now();
+                await saveAllMarketIndices(indicesData) ;
+               // EMPTY RECORD printed from below code 
+              /*  indicesData.forEach(async (nseIndex )  => {
+                  let newindices = Object.assign ({} , nseIndex); //  {  encodedHtml: encodedHtml , updatedAt:saveDate   }
+                try { 
+                 // Perform the upsert operation
+                  // const insertedNseRecord = await NseAllIndices.findOneAndUpdate({}, newindices, {
+                  //     upsert: true, // Inserts the document if it does not exist
+                  //     new: true,    // Returns the newly updated/inserted document
+                  //     setDefaultsOnInsert: true // Applies schema defaults if a new doc is created
+                 //  });
+                  //  
+                      const insertedNseRecord =     updateDatabaseIndex(newindices);
+                      console.log("NSE Index inserted in Mongo DB  :    " );
+                   //  const decodedHtml = Buffer.from(latestRecord.encodedHtml, 'base64').toString('utf-8');
+                       console.log(`NSE inserted record `)
+                      console.log(` ${JSON.stringify(insertedNseRecord)}`)
+                        if(writeStream !==undefined && writeStream !==null){ 
+                            writeStream.write(`  ${Date.now().toLocaleString()} NSE Index  transformTableToResponsiveCardsWithPoll :    \r\n `);
+                                writeStream.write(`    NSE Index inserted in Mongo DB  :    \r\n `);
+                                writeStream.write(`   ${JSON.stringify(insertedNseRecord)}   \r\n `);
+                        }  
+                   //console.log(`${decodedHtml}` );
+                   } catch (error) {
+                        console.error(`Error upserting NSE Index ${nseIndex.name} record:`, error);
+                       // if(writeStream !==undefined && writeStream !==null){ 
+                            console.log(`  ${Date.now().toLocaleString()} NSE Index INSERT  ERROR :    \r\n `);
+                             console.log(`  Error upserting NSE Index ${nseIndex.name} record: \r\n `, error );
+                       // }  
+                   }
 
-                }
+                   } ); */
                /* sendRobustPostRequest(targetUrl, indicesData)
                 .then(data => console.log('Parsed Server Yield:', data))
                 .catch(() => console.log('Transaction halted. Local safeguards executed successfully.'));
-
-             */
-
+                */
+              
 
 
 
@@ -149,6 +232,11 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
         }
         else {
             console.log("store is not available at the server STORE2 package failed .... ")
+          //  if(writeStream !==undefined && writeStream !==null){ 
+                console.log(`  ${Date.now().toLocaleString()} NSE Index STORE  :    \r\n `);
+                 console.log(` store is not available at the server STORE2 package failed ....  \r\n `  );
+                 
+           //    }  
         }
        
      }
@@ -280,6 +368,143 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
  
 
 }
+
+// 2. MARKUP COMPILATION PIPELINE
+    const cardsMarkup = indicesData.map(item => {
+        // Fallback or neutral values get a slate theme instead of forcing a fake green trend
+        const isNeutral = item.current === 'N/A';
+        const trendColor = isNeutral ? 'text-slate-400' : (item.isNegative ? 'text-red-500' : 'text-emerald-500');
+        const trendBg = isNeutral ? 'bg-slate-100' : (item.isNegative ? 'bg-red-50/50' : 'bg-emerald-50/50');
+        const trendBorder = isNeutral ? 'border-slate-200' : (item.isNegative ? 'border-red-100' : 'border-emerald-100');
+        const trendIcon = isNeutral ? '•' : (item.isNegative ? '▼' : '▲');
+
+        return `
+        <div class="bg-white border ${trendBorder} rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight uppercase">${item.name}</h3>
+                    <span class="flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${trendBg} ${trendColor}">
+                        <span class="mr-1 text-[10px]">${trendIcon}</span> ${item.percentChange}%
+                    </span>
+                </div>
+                <div class="text-2xl font-black tracking-tight text-slate-900 mb-4 ${isNeutral ? 'opacity-40' : ''}">
+                    ${item.current}
+                </div>
+            </div>
+
+            <div class="space-y-3.5 border-t border-slate-100 pt-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Open</span>
+                        <span class="text-xs font-bold text-slate-700">${item.open}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">High</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.high}</span>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg">
+                        <span class="block text-[10px] uppercase font-semibold text-slate-400">Low</span>
+                        <span class="text-xs font-bold ${isNeutral ? 'text-slate-700' : 'text-red-600'}">${item.low}</span>
+                    </div>
+                </div>
+
+                <div class="text-xs space-y-1.5 text-slate-600">
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">Prev. Close</span>
+                        <span class="font-semibold text-slate-700">${item.prevClose}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1W Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneWeekAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1M Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneMonthAgo}</span>
+                    </div>
+                    <div class="flex justify-between pb-1 border-b border-dashed border-slate-100">
+                        <span class="text-slate-400 font-medium">1Y Ago</span>
+                        <span class="font-semibold text-slate-700">${item.oneYearAgo}</span>
+                    </div>
+                    <div class="flex justify-between pt-0.5">
+                        <span class="text-slate-400 font-medium">52W High / Low</span>
+                        <span class="font-bold text-slate-700 text-[11px]">
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-emerald-600'}">${item.yearHigh}</span> / 
+                            <span class="${isNeutral ? 'text-slate-700' : 'text-red-500'}">${item.yearLow}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Conditional inclusion of the action-oriented recovery banner bottom button
+    const recoveryButtonMarkup = isFallbackState ? `
+    <div class="mt-8 flex flex-col items-center justify-center animate-fade-in">
+        <p class="text-xs font-medium text-slate-400 mb-3">Live stream interrupted. Playground mode active.</p>
+        <button 
+            onclick="window.location.reload();" 
+            class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs px-6 py-3 rounded-full shadow-md shadow-indigo-600/20 transition-all duration-200 cursor-pointer"
+        >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"></path>
+            </svg>
+            FORCE REFRESH STREAM
+        </button>
+    </div>
+    ` : '';
+
+    const statusBadge = isFallbackState ? `
+    <div class="flex items-center space-x-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+        <span>Offline Playground Mode</span>
+    </div>
+    ` : `
+    <div class="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>System Connected</span>
+    </div>
+    `;
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Indices Market Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+            body { font-family: 'Plus Jakarta Sans', sans-serif; }
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        </style>
+    </head>
+    <body class="bg-slate-50 p-4 min-h-screen flex items-center justify-center">
+
+        <div class="w-full max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6 px-1">
+                <div>
+                    <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Market Indices Dashboard</h2>
+                    <p class="text-xs text-slate-400 font-medium">Asynchronous Server Feed • Live Tracking</p>
+                </div>
+                ${statusBadge}
+            </div>
+
+            <div id="deck-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                ${cardsMarkup}
+            </div>
+
+            ${recoveryButtonMarkup}
+        </div>
+
+    </body>
+    </html>
+    `;
+
+
 }
 async function fetchNiftyIndicesTPlayWright( maxRetries = 3) {
 
@@ -396,11 +621,12 @@ async function runPlaywright() {
 //   }
   try {
      while (i < MAXWORKERTRIES ) {  
-    await fetchNiftyIndicesTPlayWright(3)
+        let niftyIndices = await fetchNiftyIndicesTPlayWright(3)
 
-
+        let latestLiveIndexResponsiveDash =  await        transformTableToResponsiveCardsWithPoll(niftyIndices ,true)
     // Send scrap data back to main thread
     // liveIndicesData = indicesData;
+    liveIndexTableHTML  = latestLiveIndexResponsiveDash
     if (liveIndexTableHTML !=="" && liveIndicesData.length  > 0) { 
 
         console.log(" playwright worker seems to have parsed nify live indices ")
