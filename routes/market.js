@@ -811,6 +811,43 @@ async function updateDatabaseIndex(scrapedDataCard) {
         { upsert: true, new: true }      // If it doesn't exist yet, insert it; otherwise, update it
     );
 }
+// --- Replace your indicesData.forEach block with this safe sequential pattern ---
+
+async function saveAllMarketIndices(indicesData) {
+    // Elegant for...of structure natively supports async/await pauses
+    for (const nseIndex of indicesData) {
+        try {
+            // Clone the index object clean framework references
+            let newindices = Object.assign({}, nseIndex); 
+            
+            // Await the return payload properly
+            const insertedNseRecord = await updateDatabaseIndex(newindices);
+            
+            console.log(`NSE Index processed in MongoDB: ${nseIndex.name}`);
+            console.log(`Inserted Record: ${JSON.stringify(insertedNseRecord)}`);
+            
+            // If the record returns cleanly, write the real data to the stream logs
+            if (writeStream) { 
+                const logTime = new Date().toLocaleString();
+                writeStream.write(`[${logTime}] NSE Index transformTableToResponsiveCardsWithPoll:\r\n`);
+                writeStream.write(`   Status: Database Upsert Confirmed\r\n`);
+                writeStream.write(`   Payload: ${JSON.stringify(insertedNseRecord)}\r\n\r\n`);
+            }   
+
+        } catch (error) {
+            console.error(`Error upserting NSE Index ${nseIndex.name} record:`, error);
+            
+            if (writeStream) { 
+                const logTime = new Date().toLocaleString();
+                writeStream.write(`[${logTime}] NSE Index INSERT CRITICAL ERROR:\r\n`);
+                writeStream.write(`   Target Index: ${nseIndex.name}\r\n`);
+                writeStream.write(`   Message: ${error.message}\r\n\r\n`);
+            }  
+        }
+    }
+}
+
+
 async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequest) {
     // Load the HTML DOM fragment into Cheerio
    
@@ -888,7 +925,11 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
                 // post the request to the server or the remote render.com 
                 const targetUrl = process.env.SEND_INDICES_TO_SERVER;
                 let saveDate = Date.now();
-                indicesData.forEach(async (nseIndex )  => {
+                await saveAllMarketIndices(indicesData) ;
+            
+            /*  streaming foreach does not work as in parallel operation the sequential update of records fails
+            
+              indicesData.forEach(async (nseIndex )  => {
                   let newindices = Object.assign ({} , nseIndex); //  {  encodedHtml: encodedHtml , updatedAt:saveDate   }
                 try { 
                  // Perform the upsert operation
@@ -919,13 +960,14 @@ async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequ
                    }  
                  }
 
-               /* sendRobustPostRequest(targetUrl, indicesData)
+              
+                } );  */ 
+
+                /* sendRobustPostRequest(targetUrl, indicesData)
                 .then(data => console.log('Parsed Server Yield:', data))
                 .catch(() => console.log('Transaction halted. Local safeguards executed successfully.'));
 
              */
-                } ); 
-
 
 
 
@@ -2084,16 +2126,79 @@ router.get('/stockbrowserold/marketstatus', async (req, res) => {
                 let saveDate = Date.now();
              newindices = {  encodedHtml: encodedHtml , updatedAt:saveDate   }
              try { 
-              // Perform the upsert operation
-                const latestRecord = await NiftyAllIndices.findOneAndUpdate({}, newindices, {
-                    upsert: true, // Inserts the document if it does not exist
-                    new: true,    // Returns the newly updated/inserted document
-                    setDefaultsOnInsert: true // Applies schema defaults if a new doc is created
-                });
-  
-              console.log("Nifty Indices responsive dashboard html  DECODED  :    " );
-              const decodedHtml = Buffer.from(latestRecord.encodedHtml, 'base64').toString('utf-8');
-              console.log(`${decodedHtml}` );
+
+                 const latestUpdated = await NiftyAllIndices.findOne().sort({ updatedAt: -1 });
+                if(latestUpdated !==undefined && latestUpdated !== null){
+                        // Decode the Base64 string back to pure HTML
+                  //CHECK IF NEW encodedHtml  matches the latestUpdated.encodedHtml
+                  // in that case no need to update the MmongoDB 
+                   let latestEncodedHtmlDB = latestUpdated.encodedHtml;
+                    if(encodedHtml.toLocaleUpperCase().trim() === latestEncodedHtmlDB.toLocaleUpperCase().trim() ){
+                        let currDate = Date.now();
+                        console.log("Nifty Indices responsive dashboard html NO CHANGE as stored in MongoDB     "+currDate.toLocaleString() );
+
+                    }
+                    else {
+
+                                // Perform the upsert operation
+                        const latestRecord = await NiftyAllIndices.findOneAndUpdate({}, newindices, {
+                            upsert: true, // Inserts the document if it does not exist
+                            new: true,    // Returns the newly updated/inserted document
+                            setDefaultsOnInsert: true // Applies schema defaults if a new doc is created
+                        });
+                        
+                    console.log("Nifty Indices responsive dashboard html  DECODED  :    " );
+                    const decodedHtml = Buffer.from(latestRecord.encodedHtml, 'base64').toString('utf-8');
+                    console.log(`${decodedHtml}` );
+
+                    }
+                 /*   const decodedHtml = Buffer.from(latestUpdated.encodedHtml, 'base64').toString('utf-8');
+                    store.set('responsiveDashboardHtml',decodedHtml);
+                    console.log("HTML successfully retrieved and decoded from Mongo DB");
+                    responsiveDashboardHtml = decodedHtml
+                    liveIndexTableHTML = decodedHtml;
+                        if (isMainThread) {
+                            }
+                            else { 
+                                if(writeStream !==undefined && writeStream !==null){ 
+                                writeStream.write(`[worker_write]${workerName} ${Date.now()}   mongoDB worker seems to have parsed responsiveDashboardHtml nify live indices \r\n `);
+                                writeStream.write(`   ${liveIndexTableHTML } `);
+                    
+                                writeStream.write(`  ----------- `);
+                                writeStream.write(`  -----------  `);
+                                writeStream.write(`   -----------  `);
+                    
+                                writeStream.write(`  ${JSON.stringify(liveIndicesData)} `);
+                            }
+                            } 
+
+
+
+
+                    console.log(`${responsiveDashboardHtml}` );
+                    // return decodedHtml;
+                    
+                                }
+                     */
+                }
+                else {
+                    let currDate = Date.now();
+                    console.log("Nifty Indices could not FETCH responsive dashboard html  stored in MongoDB     "+currDate.toLocaleString() );
+
+                               // Perform the upsert operation
+                               const latestRecord = await NiftyAllIndices.findOneAndUpdate({}, newindices, {
+                                upsert: true, // Inserts the document if it does not exist
+                                new: true,    // Returns the newly updated/inserted document
+                                setDefaultsOnInsert: true // Applies schema defaults if a new doc is created
+                            });
+                            
+                        console.log("Nifty Indices responsive dashboard html  DECODED  :    " );
+                        const decodedHtml = Buffer.from(latestRecord.encodedHtml, 'base64').toString('utf-8');
+                        console.log(`${decodedHtml}` );
+
+
+                }
+             
 
 
             } catch (error) {

@@ -1,6 +1,8 @@
 const express = require("express")
 const bodyParser = require("body-parser")
-//const cors = require("cors")
+const cors = require("cors")
+const { rateLimit } = require('express-rate-limit');
+//const https = require('https');
 const state = require("./routes/routes")
 const users = require("./routes/userRoutes.js")
 const market = require("./routes/market.js")
@@ -14,7 +16,8 @@ const { startMarketPoller } =
 //const writeStream = fs.createWriteStream(outputFile, {
 //    flags: 'a',
 //  });
-
+// Add this at the very top of your file
+require('dotenv').config();
 const app = express()
 
 // Body Parser Middleware
@@ -36,7 +39,45 @@ let allowCrossDomain = function(req, res, next) {
     }
 };
 
-app.use(allowCrossDomain)
+// Configure the rate limiter
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes time window
+    max: 100, // Limit each IP to 100 requests per window
+    message: 'Too many requests from this IP, please try again later.',
+    statusCode: 429, // Standard HTTP status for rate limiting
+    standardHeaders: 'draft-7', // Send standard RateLimit-* headers
+    legacyHeaders: false, // Disable the X-RateLimit-* headers
+  });
+
+
+// Apply the rate limiting middleware to all requests
+app.use(limiter);
+
+// Enable CORS for all routes
+const corsOrigins = process.env.CORS_ORIGINS ? 
+  process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) : 
+  ['https://192.168.1.7:8888','https://localhost:8888','https://onedinaar.com'];
+
+const corsMethods = process.env.CORS_METHODS ? 
+  process.env.CORS_METHODS.split(',').map(method => method.trim()) : 
+  ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+
+const corsHeaders = process.env.CORS_HEADERS ? 
+  process.env.CORS_HEADERS.split(',').map(header => header.trim()) : 
+  ['Content-Type', 'Authorization','x-auth'];
+
+app.use(cors({
+  origin: [
+    ...corsOrigins,
+    /^http:\/\/localhost:\d+$/,  // Allow any localhost port
+    /^http:\/\/127\.0\.0\.1:\d+$/ // Allow any 127.0.0.1 port
+  ],
+  methods: corsMethods,
+  allowedHeaders: corsHeaders,
+  credentials: process.env.CORS_CREDENTIALS !== 'false'
+}));
+
+//app.use(allowCrossDomain)
 
 
 // app.use(cors())
@@ -194,4 +235,12 @@ const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
     console.log("Started the backend server at port " + PORT)
     //startMarketPoller();
+  // Log CORS configuration
+  if (corsOrigins.length > 0) {
+    console.log(`CORS Origins: ${corsOrigins.join(', ')}`);
+}
+console.log(`CORS Methods: ${corsMethods.join(', ')}`);
+console.log(`CORS Headers: ${corsHeaders.join(', ')}`);
+console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
+
 })
