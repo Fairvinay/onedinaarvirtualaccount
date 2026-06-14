@@ -2,7 +2,9 @@ const express = require("express")
 const bodyParser = require("body-parser")
 const cors = require("cors")
 const { rateLimit } = require('express-rate-limit');
-//const https = require('https');
+const { ApolloServer } = require('apollo-server-express');
+const http = require('http');
+const https = require('https');
 const state = require("./routes/routes")
 const users = require("./routes/userRoutes.js")
 const market = require("./routes/market.js")
@@ -65,6 +67,21 @@ const corsMethods = process.env.CORS_METHODS ?
 const corsHeaders = process.env.CORS_HEADERS ? 
   process.env.CORS_HEADERS.split(',').map(header => header.trim()) : 
   ['Content-Type', 'Authorization','x-auth'];
+
+// 1. Define your GraphQL schema and resolvers
+const typeDefs = `#graphql
+  type Query {
+    hello: String
+  }
+`;
+
+const resolvers = {
+  Query: {
+    hello: () => 'Hello secured world!',
+  },
+};
+
+
 
 app.use(cors({
   origin: [
@@ -232,15 +249,77 @@ const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
 
 
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-    console.log("Started the backend server at port " + PORT)
-    //startMarketPoller();
-  // Log CORS configuration
-  if (corsOrigins.length > 0) {
-    console.log(`CORS Origins: ${corsOrigins.join(', ')}`);
+
+async function startServer() {
+
+    const server = new ApolloServer({ typeDefs, resolvers });
+    await server.start();
+  
+    // Apply Apollo middleware to express
+    server.applyMiddleware({ app });
+   // 2. Read SSL Certificate and Key
+  /* const httpsOptions = {
+    key: fs.readFileSync('ssl.key/server.key', 'utf8'),   // 🔑 private key,
+    cert: fs.readFileSync('ssl.crt/server.crt', 'utf8'), // 📜 certificate
+  };*/
+
+  const httpServer = http.createServer(app);
+ // const httpsServer = https.createServer(httpsOptions, app);
+ /* const server = new ApolloServer({
+    typeDefs,
+    resolvers,
+    plugins: [ApolloServerPluginDrainHttpServer({ httpServer: httpsServer  })]
+  });
+
+    // 1. Initialize the Apollo instance core thread
+    await server.start();
+    */
+  // 2. Attach the official v4 middleware interface wrapper to your route
+  app.use(
+      '/graphql',
+      express.json(), // Ensures payload body-parsing works specifically for GraphQL operations
+     // expressMiddleware(server)
+  );
+
+  // 3. Bind the combined application listener instance to the target port
+  httpServer.listen(PORT, () => {
+      console.log("Started the backend server at port " + PORT);
+      
+      if (corsOrigins.length > 0) {
+          console.log(`CORS Origins: ${corsOrigins.join(', ')}`);
+      }
+      console.log(`CORS Methods: ${corsMethods.join(', ')}`);
+      console.log(`CORS Headers: ${corsHeaders.join(', ')}`);
+      console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
+  });
 }
+/*
 console.log(`CORS Methods: ${corsMethods.join(', ')}`);
 console.log(`CORS Headers: ${corsHeaders.join(', ')}`);
 console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
+*/
+// Execute the modern initialization framework sequence safely
+startServer().catch(err => {
+  console.error("🚨 Critical failure during Apollo Server initialization:", err);
+});
 
-})
+
+
+
+
+
+/*
+server.start().then(() => {
+  server.applyMiddleware({ app });
+  app.listen(PORT, () => {
+    console.log("Started the backend server at port " + PORT)
+        //startMarketPoller();
+      // Log CORS configuration
+      if (corsOrigins.length > 0) {
+        console.log(`CORS Origins: ${corsOrigins.join(', ')}`);
+    }
+    console.log(`CORS Methods: ${corsMethods.join(', ')}`);
+    console.log(`CORS Headers: ${corsHeaders.join(', ')}`);
+    console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
+  })
+})*/
