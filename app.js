@@ -19,27 +19,14 @@ const { startMarketPoller } =
 //    flags: 'a',
 //  });
 // Add this at the very top of your file
-require('dotenv').config();
+//require('dotenv').config();
 const app = express()
 
 // Body Parser Middleware
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }));
 
-let allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, x-auth');
-    res.header('Access-Control-Expose-Headers', 'x-auth');
 
-    // intercept OPTIONS method
-    if ('OPTIONS' == req.method) {
-        res.sendStatus(200);
-    }
-    else {
-        next();
-    }
-};
 
 // Configure the rate limiter
 const limiter = rateLimit({
@@ -82,7 +69,7 @@ const resolvers = {
 };
 
 
-
+/*
 app.use(cors({
   origin: [
     ...corsOrigins,
@@ -91,13 +78,68 @@ app.use(cors({
   ],
   methods: corsMethods,
   allowedHeaders: corsHeaders,
-  credentials: process.env.CORS_CREDENTIALS !== 'false'
-}));
+  credentials: process.env.CORS_CREDENTIALS !== 'false',
+  optionsSuccessStatus: 200 // Fixes preflight issues on some legacy browsers
+}));*/
+let allowCrossDomain = function(req, res, next) {
+  res.header('Access-Control-Allow-Origin', corsOrigins.join(""));
+  res.header('Access-Control-Allow-Methods', corsMethods.join("")); // 'GET,PUT,POST,DELETE,OPTIONS,PATCH'
+  res.header('Access-Control-Allow-Headers', corsHeaders.join("") ); // 'Content-Type, Authorization, Content-Length, X-Requested-With, x-auth'
+  res.header('Access-Control-Expose-Headers', 'x-auth');
 
-//app.use(allowCrossDomain)
+  // intercept OPTIONS method
+  if ('OPTIONS' == req.method) {
+      res.sendStatus(200);
+  }
+  else {
+      next();
+  }
+};
+
+ //app.use(allowCrossDomain)
 
 
 // app.use(cors())
+// 1. DYNAMICALLY DEFINE YOUR CORS ORIGINS
+// Pull domains from environment variables for production, fallback to local variables for dev.
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) 
+  : [
+      'https://192.168.1.7:8888',
+      'https://localhost:8888',
+      'https://onedinaar.com'
+    ];
+
+// 2. CONFIGURE THE CORS ENGINE MIDDLEWARE
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, or your internal background Workers)
+    if (!origin) return callback(null, true);
+    
+    // Check if the incoming domain is explicitly whitelisted
+    const isWhitelisted = allowedOrigins.indexOf(origin) !== -1;
+    
+    // Dynamic Regex matching to automatically allow any local preview ports
+    const isLocalhost = /^https?:\/\/localhost:\d+$/.test(origin) || /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin);
+
+    if (isWhitelisted || isLocalhost) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ Blocked by CORS Core: ${origin}`);
+      callback(new Error('Not allowed by CORS policy configuration'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-auth'],
+  exposedHeaders: ['x-auth'], // Crucial if your frontend reads tokens directly from headers
+  credentials: true, // Must be true if your app passes session cookies across domains
+  preflightContinue: false,
+  optionsSuccessStatus: 204 // Some legacy browsers choke on 200 for pre-flights; 204 No Content is standard
+};
+
+// 3. APPLY TO APPLICATION STACK
+// CRITICAL: Place this BEFORE you define any of your route groups (app.use("/api", ...))
+app.use(cors(corsOptions));
 
 app.use("/state", state)
 app.use("/users", users)
@@ -247,34 +289,27 @@ const mongoWorker = new Worker(path.resolve(__dirname, 'mongoWorker.js'), {
     console.log(`[Main] Mongo Worker stopped with exit code ${code}`);
   });
 
-
-const PORT = process.env.PORT || 3001
-
-async function startServer() {
-
-    const server = new ApolloServer({ typeDefs, resolvers });
-    await server.start();
-  
-    // Apply Apollo middleware to express
-    server.applyMiddleware({ app });
-   // 2. Read SSL Certificate and Key
-  /* const httpsOptions = {
-    key: fs.readFileSync('ssl.key/server.key', 'utf8'),   // 🔑 private key,
-    cert: fs.readFileSync('ssl.crt/server.crt', 'utf8'), // 📜 certificate
-  };*/
-
-  const httpServer = http.createServer(app);
- // const httpsServer = https.createServer(httpsOptions, app);
  /* const server = new ApolloServer({
     typeDefs,
     resolvers,
     plugins: [ApolloServerPluginDrainHttpServer({ httpServer: httpsServer  })]
   });
-
-    // 1. Initialize the Apollo instance core thread
+  */
+  // 2. Read SSL Certificate and Key
+  /* const httpsOptions = {
+    key: fs.readFileSync('ssl.key/server.key', 'utf8'),   // 🔑 private key,
+    cert: fs.readFileSync('ssl.crt/server.crt', 'utf8'), // 📜 certificate
+  };*/
+   // const httpsServer = https.createServer(httpsOptions, app);
+const PORT = process.env.PORT || 3001
+/*
+async function startServer() {
+    const server = new ApolloServer({ typeDefs, resolvers });
     await server.start();
-    */
-  // 2. Attach the official v4 middleware interface wrapper to your route
+      // Apply Apollo middleware to express
+    server.applyMiddleware({ app });
+   const httpServer = http.createServer(app);
+   // 2. Attach the official v4 middleware interface wrapper to your route
   app.use(
       '/graphql',
       express.json(), // Ensures payload body-parsing works specifically for GraphQL operations
@@ -293,16 +328,12 @@ async function startServer() {
       console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
   });
 }
-/*
-console.log(`CORS Methods: ${corsMethods.join(', ')}`);
-console.log(`CORS Headers: ${corsHeaders.join(', ')}`);
-console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
-*/
+
 // Execute the modern initialization framework sequence safely
 startServer().catch(err => {
   console.error("🚨 Critical failure during Apollo Server initialization:", err);
 });
-
+*/
 
 
 
@@ -311,6 +342,7 @@ startServer().catch(err => {
 /*
 server.start().then(() => {
   server.applyMiddleware({ app });
+*/
   app.listen(PORT, () => {
     console.log("Started the backend server at port " + PORT)
         //startMarketPoller();
@@ -322,4 +354,4 @@ server.start().then(() => {
     console.log(`CORS Headers: ${corsHeaders.join(', ')}`);
     console.log(`CORS Credentials: ${process.env.CORS_CREDENTIALS !== 'false'}`);
   })
-})*/
+/*})*/
