@@ -18,6 +18,8 @@ const { startMarketPoller } =
 //const writeStream = fs.createWriteStream(outputFile, {
 //    flags: 'a',
 //  });
+const historyRoutes =
+require("./routes/historyRefresh");
 // Add this at the very top of your file
 //require('dotenv').config();
 const app = express()
@@ -25,7 +27,11 @@ const app = express()
 // Body Parser Middleware
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }));
+// ---------------------------
+// Global Worker State
+// ---------------------------
 
+global.workerRunning = false;
 
 
 // Configure the rate limiter
@@ -45,7 +51,7 @@ app.use(limiter);
 // Enable CORS for all routes
 const corsOrigins = process.env.CORS_ORIGINS ? 
   process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) : 
-  ['https://192.168.1.7:8888','https://localhost:8888','https://onedinaar.com'];
+  ['https://192.168.1.6:8888','https://localhost:8888','https://onedinaar.com'];
 
 const corsMethods = process.env.CORS_METHODS ? 
   process.env.CORS_METHODS.split(',').map(method => method.trim()) : 
@@ -105,7 +111,7 @@ let allowCrossDomain = function(req, res, next) {
 const allowedOrigins = process.env.CORS_ORIGINS 
   ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) 
   : [
-      'https://192.168.1.7:8888',
+      'https://192.168.1.6:8888',
       'https://localhost:8888',
       'https://onedinaar.com'
     ];
@@ -144,10 +150,74 @@ app.use(cors(corsOptions));
 app.use("/state", state)
 app.use("/users", users)
 app.use("/api", market)
+// ---------------------------
+// REST APIs
+// ---------------------------
 
+app.use(
+  "/api",
+  historyRoutes
+ );
 app.get("/", (req, res) => {
     res.send("Hey There How are you?")
 })
+// Start Nifty 50 stocks get history 
+const nifty50Worker = new Worker(path.resolve(__dirname, 'nifty50Worker.js'), {
+  workerData: { url: `${process.env.FYERS_HISTORY_URL}`, name: "nifty50Worker" }
+});
+nifty50Worker.on('message', (msg) => {
+  console.log(`[Main] Message from Nifty 50 GETHISTORY Worker:`, msg);
+  if(writeStream !==undefined && writeStream !==null){ 
+  
+        writeStream.write(`  ${Date.now()}   Message from Nifty 50 GETHISTORY Worker:  \r\n `);
+    
+   }  
+  if (msg !== null && msg !==undefined  ){
+      let html = msg.html;
+      let indices = msg.indices;
+        if(store !==undefined && store !==null){
+                  if(indices !== undefined && indices !==null ){
+      
+                      store.set("indicesData", indices);
+                      console.log("SERVER with NIFTY INDICES  UPDATED "+new Date().toLocaleDateString())
+                      if(writeStream !==undefined && writeStream !==null){ 
+  
+                        writeStream.write(`  ${Date.now()}  Nifty 50 GETHISTORY Worker: SERVER with NIFTY INDICES  UPDATED  \r\n `);
+                    
+                   }  
+                      console.log(` ${JSON.stringify(indices)}`)
+                  }
+                  else {
+                      let oldIndicies = store.get('indicesData');
+                      if(oldIndicies!==null && oldIndicies !== undefined){
+                          console.log("SERVER with NIFTY INDICES not UPDATED ")
+                          console.log(` ${JSON.stringify(oldIndicies)}`)
+                          if(writeStream !==undefined && writeStream !==null){ 
+  
+                            writeStream.write(`  ${Date.now()}  Nifty 50 GETHISTORY Worker: SERVER with NIFTY INDICES not UPDATED  \r\n `);
+                        
+                           }  
+      
+                      }
+      
+                  }
+      
+              }
+              
+  }
+
+});
+
+nifty50Worker.on('error', (err) => {
+  console.error(`[Main] Nifty 50 GETHISTORY  Worker Error:`, err);
+});
+
+nifty50Worker.on('exit', (code) => {
+  console.log(`[Main] Nifty 50 GETHISTORY  Worker stopped with exit code ${code}`);
+});
+
+
+
 // Start the Playwright Worker
 const playwrightWorker = new Worker(path.resolve(__dirname, 'playwrightWorker.js'), {
     workerData: { url: 'https://www.nseindia.com/market-data/live-market-indices' , name: "playwrightWorker" }

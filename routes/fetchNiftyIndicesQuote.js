@@ -1868,4 +1868,5 @@ try {
     fetchNiftyIndicesSecond:fetchNiftyIndicesSecond,
     fetchNiftyIndicesThird:fetchNiftyIndicesThird, 
     fetchNiftyIndicesTPlayWright:fetchNiftyIndicesTPlayWright, 
+    fetchNiftyIndicesDirectAPI:fetchNiftyIndicesDirectAPI, 
  }
