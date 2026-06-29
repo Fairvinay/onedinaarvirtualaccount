@@ -18,6 +18,14 @@ const { startMarketPoller } =
 //const writeStream = fs.createWriteStream(outputFile, {
 //    flags: 'a',
 //  });
+
+
+const {
+    startWorker,
+    setAccessToken , connectMongo
+}
+=
+require("./fyersHistoryWorker");
 const historyRoutes =
 require("./routes/historyRefresh");
 // Add this at the very top of your file
