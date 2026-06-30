@@ -113,7 +113,7 @@ async function saveAllMarketIndices(indicesData) {
 async function transformTableToResponsiveCardsWithPoll(rawTableHtml, isLocalRequest) {
     // Load the HTML DOM fragment into Cheerio
    
-    const indicesData = [];
+    let indicesData = [];
     let isFallbackState = false;
 
 
