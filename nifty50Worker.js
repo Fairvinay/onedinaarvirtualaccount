@@ -10,9 +10,11 @@ const https = require('https');
 const csv =require("csv-parser");
 const fs =require("fs");
 const outputFile = './nifty50worker_data.txt';
-const writeStream = fs.createWriteStream(outputFile, {
+/*const writeStream = fs.createWriteStream(outputFile, {
     flags: 'a',
   });
+*/
+const writeStream = undefined;
 const mongoose =require("mongoose");
 const Nifty50Stock =require("./models/Nifty50Stock");
 
@@ -33,9 +35,9 @@ async function connectMongo(){
  await mongoose.connect(    url)  .then(() => {
      
     console.log("✅ Connected from Fyers Histroy Worker MongoDB Atlas successfully");
-    if(writeStream !==undefined && writeStream !==null){ 
-        writeStream.write(` [worker_write]${workerName} ${Date.now()}  Connected MongoDB for Nifty50 stocks update \r\n `);
-       }
+    //if(writeStream !==undefined && writeStream !==null){ 
+        console.log(` [worker_write]${workerName} ${Date.now()}  Connected MongoDB for Nifty50 stocks update \r\n `);
+   //    }
 })
 .catch((err) => {
     console.error("❌ Fyers Histroy Worker   Database connection error:", err);
@@ -49,9 +51,9 @@ async function fetchCSV(){
 
  const url = FYERS_EQUITY_CSV;
  const response = await axios.get(    url,    {      responseType:"stream"    } );
- if(writeStream !==undefined && writeStream !==null){ 
-    writeStream.write(` [worker_write]${workerName} ${Date.now()}  Fetch FYERS NSE_CM.csv  \r\n `);
-   }
+// if(writeStream !==undefined && writeStream !==null){ 
+    console.log(` [worker_write]${workerName} ${Date.now()}  Fetch FYERS NSE_CM.csv  \r\n `);
+ //  }
 
  return response.data;
 
@@ -66,15 +68,15 @@ async function validateToken(){
  const response = await axios.get( `${process.env.FYERS_BASE_URL}/api/v3/profile`, { headers:{   Authorization:`${appId}:${runtimeToken}` } } );
  console.log("validateToken response.data " +JSON.stringify(response.data))
  if( response.data.s==="error" ) {  
-    if(writeStream !==undefined && writeStream !==null){ 
-        writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS VALIDATE TOKEN FAILED     \r\n `);
-       }
+   // if(writeStream !==undefined && writeStream !==null){ 
+        console.log(` [worker_write]${workerName} ${Date.now()}  FYERS VALIDATE TOKEN FAILED     \r\n `);
+   //    }
     
     throw new Error(    "FYERS_TOKEN_EXPIRED"   );
  }
- if(writeStream !==undefined && writeStream !==null){ 
-    writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS ACCESS TOKEN VALID    \r\n `);
-   }
+// if(writeStream !==undefined && writeStream !==null){ 
+    console.log(` [worker_write]${workerName} ${Date.now()}  FYERS ACCESS TOKEN VALID    \r\n `);
+//   }
 } catch(ere){
     console.log("validateToken  axios.get  "+`${process.env.FYERS_BASE_URL}/profile` +JSON.stringify(ere))
 }
@@ -112,9 +114,9 @@ async function buildSymbolMap(){
          })
         .on("end", ()=>{
            console.log(    "Filtered Stocks:",    symbolMap.size   );
-           if(writeStream !==undefined && writeStream !==null){ 
-            writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS FILTERED STOCKS    \r\n `);
-           }
+         //  if(writeStream !==undefined && writeStream !==null){ 
+            console.log(` [worker_write]${workerName} ${Date.now()}  FYERS FILTERED STOCKS    \r\n `);
+        //   }
            resolve(symbolMap);
         })
         .on( "error", reject );
@@ -156,9 +158,9 @@ const httpsAgent = new https.Agent({
         if( data.s === "error"  ||  data.code === -16   ||  data.code === 401 )   {
             throw new Error(              "FYERS_TOKEN_EXPIRED"            );
         }
-        if(writeStream !==undefined && writeStream !==null){ 
-            writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY for  NSE:${symbol}-EQ   \r\n `);
-           }
+      //  if(writeStream !==undefined && writeStream !==null){ 
+            console.log(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY for  NSE:${symbol}-EQ   \r\n `);
+      //     }
         return data;
     }catch(err)
     {        console.error(            "History failed:",            symbol,            err.message        );
@@ -201,13 +203,13 @@ async function runNifty50GetHistory() {
                     `EQUITY LIST ===> ${FYERS_EQUITY_CSV} \r\n`+
                 ` VALIDATE TOKEN ===>  ${FYERS_VALIDATE_URL} \r\n` +
                `  HISTORY URL ====> ${FYERS_GETHISTORY_URL} `});
-          if(writeStream !==undefined && writeStream !==null){ 
-            writeStream.write(` [worker_write]${workerName} ${Date.now()}  `+ `Launching Nifty 50 GET HISTORY  \n`+ 
+         // if(writeStream !==undefined && writeStream !==null){ 
+            console.log(` [worker_write]${workerName} ${Date.now()}  `+ `Launching Nifty 50 GET HISTORY  \n`+ 
             `EQUITY LIST ===> ${FYERS_EQUITY_CSV} \r\n`+
         ` VALIDATE TOKEN ===>  ${FYERS_VALIDATE_URL} \r\n` +
        `  HISTORY URL ====> ${FYERS_GETHISTORY_URL} ` );
 
-           }
+        //   }
   try {
      while (i < MAXWORKERTRIES ) {  
 
@@ -236,9 +238,9 @@ async function runNifty50GetHistory() {
                         catch(err){
                             if( err.message ==="FYERS_TOKEN_EXPIRED" )       {
                                 console.error( `========================= FYERS TOKEN EXPIRED STOPPING WORKER  ========================= ` );
-                                if(writeStream !==undefined && writeStream !==null){ 
-                                    writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS TOKEN EXPIRED STOPPING WORKER    \r\n `);
-                                }
+                             //   if(writeStream !==undefined && writeStream !==null){ 
+                                    console.log(` [worker_write]${workerName} ${Date.now()}  FYERS TOKEN EXPIRED STOPPING WORKER    \r\n `);
+                             //   }
                                 return {   status:"STOPPED",   reason:"TOKEN_EXPIRED"   };
                             }
                             console.log(  "Skipping stock:",stock.symbol  );   
@@ -252,15 +254,15 @@ async function runNifty50GetHistory() {
                         
                     }
                     console.log("Worker Completed");
-                    if(writeStream !==undefined && writeStream !==null){ 
-                        writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY  COMPLETED   \r\n `);
-                    }
+                 //   if(writeStream !==undefined && writeStream !==null){ 
+                        console.log(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY  COMPLETED   \r\n `);
+                 //   }
         
             }).catch((err)=>{
                 console.log("Worker EXITED INVALID TOKEN ");
-                if(writeStream !==undefined && writeStream !==null){ 
-                    writeStream.write(` [worker_write]${workerName} ${Date.now()} FYERS TOKEN INVALID HISTORY FETCH EXITED  \r\n `);
-                }
+            //    if(writeStream !==undefined && writeStream !==null){ 
+                    console.log(` [worker_write]${workerName} ${Date.now()} FYERS TOKEN INVALID HISTORY FETCH EXITED  \r\n `);
+            //    }
         
             });
              i= i+1;
@@ -273,9 +275,9 @@ async function runNifty50GetHistory() {
                   writeStream.write(`[worker_created]${workerName}\r\n`);
                 }*/
               } else {
-                if(writeStream !==undefined && writeStream !==null){ 
-                writeStream.write(`[worker_started]${workerName}     Nifty 50 GET HISTORY worker psring ${i} time nify 50 stocks         \r\n`);
-                }
+           //     if(writeStream !==undefined && writeStream !==null){ 
+                console.log(`[worker_started]${workerName}     Nifty 50 GET HISTORY worker psring ${i} time nify 50 stocks         \r\n`);
+            //    }
               
               }
         
@@ -283,13 +285,13 @@ async function runNifty50GetHistory() {
       }
   } catch (error) {
        parentPort.postMessage({ status: 'error', error: error.message });
-       if(writeStream !==undefined && writeStream !==null){ 
-          writeStream.write(`[worker_started]${workerName}    ${JSON.stringify( error.message)} \r\n`);
-       }
+     //  if(writeStream !==undefined && writeStream !==null){ 
+         console.log(`[worker_started]${workerName}    ${JSON.stringify( error.message)} \r\n`);
+    //   }
      } finally {
-       if(writeStream !==undefined && writeStream !==null){ 
-           writeStream.write(`[worker_write]${workerName} ${Date.now()}   [worker_finished]${workerName} \r\n`);
-       }
+     //  if(writeStream !==undefined && writeStream !==null){ 
+           console.log(`[worker_write]${workerName} ${Date.now()}   [worker_finished]${workerName} \r\n`);
+     //  }
       // await browser.close();
        console.log('closeing the worker ')
        //process.exit(0); // Cleanly exit worker when task finishes

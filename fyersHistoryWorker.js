@@ -33,13 +33,14 @@ const axios =require("axios");
 const csv =require("csv-parser");
 const fs =require("fs");
 const outputFile = './nifty50worker_data.txt';
-const writeStream = fs.createWriteStream(outputFile, {
+/*const writeStream = fs.createWriteStream(outputFile, {
     flags: 'a',
   });
+*/
 const mongoose =require("mongoose");
 const Nifty50Stock =require("./models/Nifty50Stock");
 const workerName = "Fyers Nifty50 History "
-
+const writeStream = undefined;
 
 //CLOSE FILE logging stream 
 if(writeStream !==undefined && writeStream !==null){ 
@@ -49,9 +50,9 @@ if(writeStream !==undefined && writeStream !==null){
   });*/
   
   // Optional: Listen for the final close event
-  writeStream.on('close', () => {
+ // writeStream.on('close', () => {
     console.log('File descriptor released.');
-  });
+ // });
 
 }
 // ----------------------------------
@@ -80,9 +81,10 @@ async function fetchCSV(){
 
  const url = "https://public.fyers.in/sym_details/NSE_CM.csv";
  const response = await axios.get(    url,    {      responseType:"stream"    } );
- if(writeStream !==undefined && writeStream !==null){ 
-    writeStream.write(` [worker_write]${workerName} ${Date.now()}  Fetch FYERS NSE_CM.csv  \r\n `);
-   }
+ //if(writeStream !==undefined && writeStream !==null){ 
+   // writeStream.write(` [worker_write]${workerName} ${Date.now()}  Fetch FYERS NSE_CM.csv  \r\n `);
+    console.log(` [worker_write]${workerName} ${Date.now()}  Fetch FYERS NSE_CM.csv  \r\n `);
+ //  }
 
  return response.data;
 
@@ -92,15 +94,15 @@ async function fetchCSV(){
 async function validateToken(){
  const response = await axios.get( `${process.env.FYERS_BASE_URL}/profile`, { headers:{   Authorization:runtimeToken } } );
  if( response.data.s==="error" ) {  
-    if(writeStream !==undefined && writeStream !==null){ 
-        writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS VALIDATE TOKEN FAILED     \r\n `);
-       }
+   // if(writeStream !==undefined && writeStream !==null){ 
+        console.log(` [worker_write]${workerName} ${Date.now()}  FYERS VALIDATE TOKEN FAILED     \r\n `);
+   //    }
     
     throw new Error(    "FYERS_TOKEN_EXPIRED"   );
  }
- if(writeStream !==undefined && writeStream !==null){ 
-    writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS ACCESS TOKEN VALID    \r\n `);
-   }
+// if(writeStream !==undefined && writeStream !==null){ 
+    console.log(` [worker_write]${workerName} ${Date.now()}  FYERS ACCESS TOKEN VALID    \r\n `);
+//   }
 }
 
 let runtimeToken = null;
@@ -135,9 +137,9 @@ async function buildSymbolMap(){
          })
         .on("end", ()=>{
            console.log(    "Filtered Stocks:",    symbolMap.size   );
-           if(writeStream !==undefined && writeStream !==null){ 
-            writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS FILTERED STOCKS    \r\n `);
-           }
+         //  if(writeStream !==undefined && writeStream !==null){ 
+            console.log(` [worker_write]${workerName} ${Date.now()}  FYERS FILTERED STOCKS    \r\n `);
+         //  }
            resolve(symbolMap);
         })
         .on( "error", reject );
@@ -172,9 +174,9 @@ async function getHistory(symbol)
         if( data.s === "error"  ||  data.code === -16   ||  data.code === 401 )   {
             throw new Error(              "FYERS_TOKEN_EXPIRED"            );
         }
-        if(writeStream !==undefined && writeStream !==null){ 
-            writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY for  NSE:${symbol}-EQ   \r\n `);
-           }
+      //  if(writeStream !==undefined && writeStream !==null){ 
+            console.log(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY for  NSE:${symbol}-EQ   \r\n `);
+      //     }
         return data;
     }catch(err)
     {        console.error(            "History failed:",            symbol,            err.message        );
@@ -240,9 +242,9 @@ async function startWorker(){
                 catch(err){
                     if( err.message ==="FYERS_TOKEN_EXPIRED" )       {
                         console.error( `========================= FYERS TOKEN EXPIRED STOPPING WORKER  ========================= ` );
-                        if(writeStream !==undefined && writeStream !==null){ 
-                            writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS TOKEN EXPIRED STOPPING WORKER    \r\n `);
-                        }
+                 //       if(writeStream !==undefined && writeStream !==null){ 
+                            console.log(` [worker_write]${workerName} ${Date.now()}  FYERS TOKEN EXPIRED STOPPING WORKER    \r\n `);
+                 //       }
                         return {   status:"STOPPED",   reason:"TOKEN_EXPIRED"   };
                     }
                     console.log(  "Skipping stock:",stock.symbol  );   
@@ -256,15 +258,15 @@ async function startWorker(){
                 
             }
             console.log("Worker Completed");
-            if(writeStream !==undefined && writeStream !==null){ 
-                writeStream.write(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY  COMPLETED   \r\n `);
-            }
+           // if(writeStream !==undefined && writeStream !==null){ 
+                console.log(` [worker_write]${workerName} ${Date.now()}  FYERS HISTORY  COMPLETED   \r\n `);
+           // }
 
     }).catch((err)=>{
         console.log("Worker EXITED INVALID TOKEN ");
-        if(writeStream !==undefined && writeStream !==null){ 
-            writeStream.write(` [worker_write]${workerName} ${Date.now()} FYERS TOKEN INVALID HISTORY FETCH EXITED  \r\n `);
-        }
+      //  if(writeStream !==undefined && writeStream !==null){ 
+            console.log(` [worker_write]${workerName} ${Date.now()} FYERS TOKEN INVALID HISTORY FETCH EXITED  \r\n `);
+      //  }
 
     });
 
