@@ -19,7 +19,7 @@ const { startMarketPoller } =
 //    flags: 'a',
 //  });
 
-
+const writeStream = undefined;
 const {
     startWorker,
     setAccessToken , connectMongo
@@ -175,11 +175,11 @@ const nifty50Worker = new Worker(path.resolve(__dirname, 'nifty50Worker.js'), {
 });
 nifty50Worker.on('message', (msg) => {
   console.log(`[Main] Message from Nifty 50 GETHISTORY Worker:`, msg);
-  if(writeStream !==undefined && writeStream !==null){ 
+  //if(writeStream !==undefined && writeStream !==null){ 
   
-        writeStream.write(`  ${Date.now()}   Message from Nifty 50 GETHISTORY Worker:  \r\n `);
+        console.log(`  ${Date.now()}   Message from Nifty 50 GETHISTORY Worker:  \r\n `);
     
-   }  
+ //  }  
   if (msg !== null && msg !==undefined  ){
       let html = msg.html;
       let indices = msg.indices;
@@ -188,11 +188,11 @@ nifty50Worker.on('message', (msg) => {
       
                       store.set("indicesData", indices);
                       console.log("SERVER with NIFTY INDICES  UPDATED "+new Date().toLocaleDateString())
-                      if(writeStream !==undefined && writeStream !==null){ 
+                    //  if(writeStream !==undefined && writeStream !==null){ 
   
-                        writeStream.write(`  ${Date.now()}  Nifty 50 GETHISTORY Worker: SERVER with NIFTY INDICES  UPDATED  \r\n `);
+                        console.log(`  ${Date.now()}  Nifty 50 GETHISTORY Worker: SERVER with NIFTY INDICES  UPDATED  \r\n `);
                     
-                   }  
+               //    }  
                       console.log(` ${JSON.stringify(indices)}`)
                   }
                   else {
@@ -200,11 +200,11 @@ nifty50Worker.on('message', (msg) => {
                       if(oldIndicies!==null && oldIndicies !== undefined){
                           console.log("SERVER with NIFTY INDICES not UPDATED ")
                           console.log(` ${JSON.stringify(oldIndicies)}`)
-                          if(writeStream !==undefined && writeStream !==null){ 
+                    //      if(writeStream !==undefined && writeStream !==null){ 
   
-                            writeStream.write(`  ${Date.now()}  Nifty 50 GETHISTORY Worker: SERVER with NIFTY INDICES not UPDATED  \r\n `);
+                           console.log(`  ${Date.now()}  Nifty 50 GETHISTORY Worker: SERVER with NIFTY INDICES not UPDATED  \r\n `);
                         
-                           }  
+                  //         }  
       
                       }
       
